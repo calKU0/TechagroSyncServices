@@ -2,9 +2,11 @@
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using TeachagroApiSync.DTOs;
 using TeachagroApiSync.Helpers;
@@ -58,62 +60,44 @@ namespace TechagroApiSync.Services
                             break;
                         }
 
-                        //using (SqlConnection connection = new SqlConnection(_connectionString))
-                        //{
-                        //    await connection.OpenAsync();
+                        using (SqlConnection connection = new SqlConnection(_connectionString))
+                        {
+                            await connection.OpenAsync();
 
-                        //    foreach (var apiProduct in apiResponse.Products)
-                        //    {
-                        //        fetchedProductIds.Add(apiProduct.Id);
+                            foreach (var apiProduct in apiResponse.Products)
+                            {
+                                fetchedProductIds.Add(apiProduct.Id);
 
-                        //        string sql = @"
-                        //        MERGE Products AS target
-                        //        USING (SELECT @Id AS Id) AS source
-                        //        ON (target.Id = source.Id)
-                        //        WHEN MATCHED THEN
-                        //            UPDATE SET
-                        //                CodeGaska = @CodeGaska,
-                        //                CodeCustomer = @CodeCustomer,
-                        //                Name = @Name,
-                        //                Description = @Description,
-                        //                Ean = @Ean,
-                        //                TechnicalDetails = @TechnicalDetails,
-                        //                WeightGross = @WeightGross,
-                        //                WeightNet = @WeightNet,
-                        //                SupplierName = @SupplierName,
-                        //                SupplierLogo = @SupplierLogo,
-                        //                InStock = @InStock,
-                        //                CurrencyPrice = @CurrencyPrice,
-                        //                PriceNet = @PriceNet,
-                        //                PriceGross = @PriceGross,
-                        //                Archived = 0
-                        //        WHEN NOT MATCHED THEN
-                        //            INSERT (Id, CodeGaska, CodeCustomer, Name, Description, Ean, TechnicalDetails, WeightGross, WeightNet, SupplierName, SupplierLogo, InStock, CurrencyPrice, PriceNet, PriceGross, Archived)
-                        //            VALUES (@Id, @CodeGaska, @CodeCustomer, @Name, @Description, @Ean, @TechnicalDetails, @WeightGross, @WeightNet, @SupplierName, @SupplierLogo, @InStock, @CurrencyPrice, @PriceNet, @PriceGross, 0);";
+                                string procedure = @"dbo.UpsertProduct";
+                                try
+                                {
+                                    using (SqlCommand cmd = new SqlCommand(procedure, connection))
+                                    {
+                                        cmd.CommandType = CommandType.StoredProcedure;
 
-                        //        using (SqlCommand cmd = new SqlCommand(sql, connection))
-                        //        {
-                        //            cmd.Parameters.AddWithValue("@Id", apiProduct.Id);
-                        //            cmd.Parameters.AddWithValue("@CodeGaska", (object)apiProduct.CodeGaska ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@CodeCustomer", (object)apiProduct.CodeCustomer ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@Name", (object)apiProduct.Name ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@Description", (object)apiProduct.Description ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@Ean", (object)apiProduct.Ean ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@TechnicalDetails", (object)apiProduct.TechnicalDetails ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@WeightGross", (object)apiProduct.GrossWeight ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@WeightNet", (object)apiProduct.NetWeight ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@SupplierName", (object)apiProduct.SupplierName ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@SupplierLogo", (object)apiProduct.SupplierLogo ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@InStock", (object)apiProduct.InStock ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@CurrencyPrice", (object)apiProduct.CurrencyPrice ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@PriceNet", (object)apiProduct.NetPrice ?? DBNull.Value);
-                        //            cmd.Parameters.AddWithValue("@PriceGross", (object)apiProduct.GrossPrice ?? DBNull.Value);
+                                        // Required by proc
+                                        cmd.Parameters.AddWithValue("@NAZWA", (object)apiProduct.Name ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@NAZWA_ORYG", (object)apiProduct.Name ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@STAN", (object)apiProduct.InStock ?? 0);
+                                        cmd.Parameters.AddWithValue("@INDEKS_KATALOGOWY", (object)apiProduct.CodeGaska ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@CENA_ZAKUPU_BRUTTO", (object)apiProduct.GrossPrice ?? 0);
+                                        cmd.Parameters.AddWithValue("@CENA_ZAKUPU_NETTO", (object)apiProduct.NetPrice ?? 0);
+                                        cmd.Parameters.AddWithValue("@KOD_KRESKOWY", (object)apiProduct.Ean ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@WAGA", (object)apiProduct.GrossWeight ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PRODUCENT", (object)apiProduct.SupplierName ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@ID_PRODUCENTA", (object)apiProduct.Id ?? DBNull.Value);
 
-                        //            await cmd.ExecuteNonQueryAsync();
-                        //        }
-                        //    }
-                        //}
-                        Log.Information($"Successfully fetched {apiResponse.Products.Count} products.");
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, $"Failed to upsert product {apiProduct.Id}");
+                                    hasErrors = true;
+                                }
+                            }
+                            Log.Information($"Successfully fetched and updated {apiResponse.Products.Count} products.");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -131,224 +115,170 @@ namespace TechagroApiSync.Services
 
             if (hasErrors)
             {
-                Log.Warning("Errors occurred during product sync. Archiving skipped to avoid data inconsistency.");
+                Log.Warning("Errors occurred during product sync.");
                 return;
             }
-
-            //try
-            //{
-            //    Log.Information("Searching for products to archive.");
-            //    int archivedCount = 0;
-
-            //    using (SqlConnection connection = new SqlConnection(_connectionString))
-            //    {
-            //        await connection.OpenAsync();
-
-            //        // Build parameterized IN clause
-            //        var idParams = new List<string>();
-            //        var cmd = new SqlCommand();
-            //        cmd.Connection = connection;
-
-            //        int i = 0;
-            //        foreach (var id in fetchedProductIds)
-            //        {
-            //            string paramName = $"@id{i}";
-            //            idParams.Add(paramName);
-            //            cmd.Parameters.AddWithValue(paramName, id);
-            //            i++;
-            //        }
-
-            //        if (idParams.Count <= 0) return;
-
-            //        string sql = $@"
-            //            UPDATE Products
-            //            SET Archived = 1
-            //            WHERE Id NOT IN ({string.Join(",", idParams)}) AND Archived = 0;
-
-            //            SELECT @@ROWCOUNT;";
-
-            //        cmd.CommandText = sql;
-
-            //        var result = await cmd.ExecuteScalarAsync();
-            //        archivedCount = Convert.ToInt32(result);
-            //    }
-
-            //    Log.Information($"Archived {archivedCount} products.");
-            //}
-            //catch (Exception ex)
-            //{
-            //    Log.Error(ex, "An error occurred while checking for products to archive.");
-            //}
         }
 
-        //public async Task SyncProductDetails()
-        //{
-        //    List<Product> productsToUpdate = new List<Product>();
+        public async Task SyncProductDetails()
+        {
+            List<int> productsToUpdate = new List<int>();
 
-        //    using (var db = new MyDbContext())
-        //    {
-        //        try
-        //        {
-        //            // Get products that are missing the details collections
-        //            productsToUpdate = await db.Products
-        //                .Where(p => !p.Categories.Any() && p.PriceNet >= _minProductPrice && !p.Archived)
-        //                .Take(_apiSettings.ProductPerDay)
-        //                .ToListAsync();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
 
-        //            // If nothing was found, fallback to products ordered by UpdatedDate
-        //            if (!productsToUpdate.Any())
-        //            {
-        //                productsToUpdate = await db.Products
-        //                    .Where(p => p.PriceNet >= _minProductPrice && !p.Archived)
-        //                    .OrderBy(p => p.UpdatedDate)
-        //                    .Take(_apiSettings.ProductPerDay)
-        //                    .ToListAsync();
-        //            }
+                try
+                {
+                    string procedure = "dbo.GetProductsWithoutDescription";
 
-        //            if (!productsToUpdate.Any())
-        //            {
-        //                return;
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            Log.Error(ex, $"Error while getting products to update details from database");
-        //            return;
-        //        }
+                    using (var cmd = new SqlCommand(procedure, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@TopCount", _apiSettings.ProductPerDay);
 
-        //        using (var client = new HttpClient())
-        //        {
-        //            ApiHelper.AddDefaultHeaders(_apiSettings, client);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                productsToUpdate.Add(reader.GetInt32(0));
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error while fetching products without description.");
+                    return;
+                }
 
-        //            foreach (var product in productsToUpdate)
-        //            {
-        //                try
-        //                {
-        //                    var response = await client.GetAsync($"{_apiSettings.BaseUrl}/product?id={product.Id}&lng=pl");
+                if (!productsToUpdate.Any())
+                {
+                    return; // Nothing to process
+                }
 
-        //                    if (!response.IsSuccessStatusCode)
-        //                    {
-        //                        Log.Error($"API error while fetching product details. Product ID: {product.Id}. Product Code: {product.CodeGaska}. Response Status: {response.StatusCode}");
-        //                        continue;
-        //                    }
+                using (var client = new HttpClient())
+                {
+                    ApiHelper.AddDefaultHeaders(_apiSettings, client);
 
-        //                    var json = await response.Content.ReadAsStringAsync();
-        //                    var apiResponse = JsonConvert.DeserializeObject<ApiProductResponse>(json);
+                    foreach (var plu in productsToUpdate)
+                    {
+                        try
+                        {
+                            var response = await client.GetAsync($"{_apiSettings.BaseUrl}/product?id={plu}&lng=pl");
+                            if (!response.IsSuccessStatusCode)
+                            {
+                                Log.Error($"API error while fetching product details. PLU: {plu}, Status: {response.StatusCode}");
+                                continue;
+                            }
 
-        //                    if (apiResponse?.Product == null)
-        //                    {
-        //                        continue;
-        //                    }
+                            var json = await response.Content.ReadAsStringAsync();
+                            var apiResponse = JsonConvert.DeserializeObject<ApiProductResponse>(json);
 
-        //                    var updatedProduct = apiResponse.Product;
+                            if (apiResponse?.Product == null)
+                                continue;
 
-        //                    // Clear existing collections
-        //                    db.Packages.RemoveRange(product.Packages);
-        //                    db.CrossNumbers.RemoveRange(product.CrossNumbers);
-        //                    db.Components.RemoveRange(product.Components);
-        //                    db.RecommendedParts.RemoveRange(product.RecommendedParts);
-        //                    db.Applications.RemoveRange(product.Applications);
-        //                    db.ProductParameters.RemoveRange(product.Parameters);
-        //                    db.ProductImages.RemoveRange(product.Images);
-        //                    db.ProductFiles.RemoveRange(product.Files);
-        //                    db.ProductCategories.RemoveRange(product.Categories);
+                            var p = apiResponse.Product;
 
-        //                    // Update fields
-        //                    product.CodeGaska = updatedProduct.CodeGaska;
-        //                    product.CodeCustomer = updatedProduct.CodeCustomer;
-        //                    product.Name = updatedProduct.Name;
-        //                    product.SupplierName = updatedProduct.SupplierName;
-        //                    product.SupplierLogo = updatedProduct.SupplierLogo;
-        //                    product.InStock = updatedProduct.InStock;
-        //                    product.CurrencyPrice = updatedProduct.CurrencyPrice;
-        //                    product.PriceNet = updatedProduct.PriceNet;
-        //                    product.PriceGross = updatedProduct.PriceGross;
-        //                    product.UpdatedDate = DateTime.Now;
+                            // Build the HTML description for Opis
+                            var opisBuilder = new StringBuilder();
 
-        //                    // Map updated collections
-        //                    product.Packages = updatedProduct.Packages.Select(p => new Package
-        //                    {
-        //                        PackUnit = p.PackUnit,
-        //                        PackQty = p.PackQty,
-        //                        PackNettWeight = p.PackNettWeight,
-        //                        PackGrossWeight = p.PackGrossWeight,
-        //                        PackEan = p.PackEan,
-        //                        PackRequired = p.PackRequired
-        //                    }).ToList();
+                            if (p.Parameters?.Any() == true)
+                            {
+                                opisBuilder.Append("<p><b>Parametry: </b>")
+                                           .Append(string.Join(", ", p.Parameters.Select(ps => $"{ps.AttributeName} : {ps.AttributeValue}")))
+                                           .Append("</p>");
+                            }
 
-        //                    product.CrossNumbers = (updatedProduct.CrossNumbers ?? Enumerable.Empty<ApiCrossNumber>())
-        //                        .Where(c => c != null && !string.IsNullOrEmpty(c.CrossNumber))
-        //                        .SelectMany(c => c.CrossNumber
-        //                            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-        //                            .Select(cn => new CrossNumber
-        //                            {
-        //                                CrossNumberValue = cn.Trim(),
-        //                                CrossManufacturer = c.CrossManufacturer
-        //                            }))
-        //                        .ToList();
+                            if (p.CrossNumbers?.Any() == true)
+                            {
+                                opisBuilder.Append("<p><b>Numery referencyjne: </b>")
+                                           .Append(string.Join(", ", p.CrossNumbers.Select(c => c.CrossNumber)))
+                                           .Append("</p>");
+                            }
 
-        //                    product.Components = updatedProduct.Components.Select(c => new Component
-        //                    {
-        //                        TwrID = c.TwrID,
-        //                        CodeGaska = c.CodeGaska,
-        //                        Qty = c.Qty
-        //                    }).ToList();
+                            // Applications section
+                            if (p.Applications?.Any() == true)
+                            {
+                                var appsByParent = p.Applications
+                                                          .GroupBy(a => a.ParentID)
+                                                          .ToDictionary(g => g.Key, g => g.ToList());
 
-        //                    product.RecommendedParts = updatedProduct.RecommendedParts.Select(r => new RecommendedPart
-        //                    {
-        //                        TwrID = r.TwrID,
-        //                        CodeGaska = r.CodeGaska,
-        //                        Qty = r.Qty
-        //                    }).ToList();
+                                string BuildApplicationsHtml(List<ApiApplication> apps, int depth = 1)
+                                {
+                                    if (!apps.Any()) return string.Empty;
 
-        //                    product.Applications = updatedProduct.Applications.Select(a => new Application
-        //                    {
-        //                        ApplicationId = a.Id,
-        //                        ParentID = a.ParentID,
-        //                        Name = a.Name
-        //                    }).ToList();
+                                    var sb = new StringBuilder();
+                                    sb.Append("<ul>");
 
-        //                    product.Parameters = updatedProduct.Parameters.Select(p => new ProductParameter
-        //                    {
-        //                        AttributeId = p.AttributeId,
-        //                        AttributeName = p.AttributeName,
-        //                        AttributeValue = p.AttributeValue
-        //                    }).ToList();
+                                    foreach (var app in apps)
+                                    {
+                                        sb.Append("<li>").Append(app.Name);
 
-        //                    product.Images = updatedProduct.Images.Select(i => new ProductImage
-        //                    {
-        //                        Title = i.Title,
-        //                        Url = i.Url
-        //                    }).ToList();
+                                        if (appsByParent.ContainsKey(app.Id))
+                                            sb.Append(BuildApplicationsHtml(appsByParent[app.Id], depth + 1));
 
-        //                    product.Files = updatedProduct.Files.Select(f => new ProductFile
-        //                    {
-        //                        Title = f.Title,
-        //                        Url = f.Url
-        //                    }).ToList();
+                                        sb.Append("</li>");
+                                    }
 
-        //                    product.Categories = updatedProduct.Categories.Select(c => new ProductCategory
-        //                    {
-        //                        CategoryId = c.Id,
-        //                        ParentID = c.ParentID,
-        //                        Name = c.Name
-        //                    }).ToList();
+                                    sb.Append("</ul>");
+                                    return sb.ToString();
+                                }
 
-        //                    await db.SaveChangesAsync();
-        //                    Log.Information($"Successfully fetched and updated details of product with ID: {product.Id} and Code: {product.CodeGaska}");
-        //                }
-        //                catch (Exception ex)
-        //                {
-        //                    Log.Error(ex, $"Error while trying to fetch and update product data. Product with ID: {product.Id} and code {product.CodeGaska}");
-        //                    continue;
-        //                }
-        //                finally
-        //                {
-        //                    Task.Delay(TimeSpan.FromSeconds(_apiSettings.ProductInterval)).Wait(); // Respect API rate limits
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
+                                if (appsByParent.ContainsKey(0))
+                                {
+                                    opisBuilder.Append("<div class=\"product-applications\">")
+                                               .Append("<p><b>Zastosowanie: </b></p>")
+                                               .Append(BuildApplicationsHtml(appsByParent[0]))
+                                               .Append("</div>");
+                                }
+                            }
+
+                            // Upsert product
+                            using (var cmd = new SqlCommand("dbo.UpdateProductDescription", connection))
+                            {
+                                cmd.CommandType = CommandType.StoredProcedure;
+
+                                cmd.Parameters.AddWithValue("@INDEKS_KATALOGOWY", p.CodeGaska ?? (object)DBNull.Value);
+                                cmd.Parameters.AddWithValue("@NowyOpis", opisBuilder ?? (object)DBNull.Value);
+
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // Upsert images
+                            if (p.Images != null)
+                            {
+                                foreach (var img in p.Images)
+                                {
+                                    if (string.IsNullOrEmpty(img.Url))
+                                        continue;
+
+                                    byte[] imageData = await client.GetByteArrayAsync(img.Url);
+
+                                    using (var cmdImg = new SqlCommand("UpsertProductImage", connection))
+                                    {
+                                        cmdImg.CommandType = CommandType.StoredProcedure;
+                                        cmdImg.Parameters.AddWithValue("@INDEKS", p.CodeGaska);
+                                        cmdImg.Parameters.AddWithValue("@DANE", imageData);
+                                        cmdImg.Parameters.AddWithValue("@NAZWA_PLIKU", img.Title ?? "image");
+
+                                        await cmdImg.ExecuteNonQueryAsync();
+                                    }
+                                }
+                            }
+
+                            Log.Information($"Upserted product {p.CodeGaska}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, $"Error processing PLU {plu}");
+                        }
+                        finally
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(_apiSettings.ProductInterval));
+                        }
+                    }
+                }
+            }
+        }
     }
 }

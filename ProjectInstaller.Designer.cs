@@ -33,6 +33,7 @@
             // 
             // serviceProcessInstaller1
             // 
+            this.serviceProcessInstaller1.Account = System.ServiceProcess.ServiceAccount.LocalSystem;
             this.serviceProcessInstaller1.Password = null;
             this.serviceProcessInstaller1.Username = null;
             // 
@@ -41,6 +42,7 @@
             this.serviceInstaller1.Description = "Serwis pobierający towary z Gąska poprzez API";
             this.serviceInstaller1.DisplayName = "GaskaApiService";
             this.serviceInstaller1.ServiceName = "GaskaApiService";
+            this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
             // ProjectInstaller
             // 
