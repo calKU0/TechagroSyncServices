@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TeachagroApiSync.DTOs;
 using TeachagroApiSync.Helpers;
@@ -16,11 +17,13 @@ namespace TechagroApiSync.Services
     public class ApiService
     {
         private readonly GaskaApiSettings _apiSettings;
+        private readonly int _margin;
         private readonly string _connectionString;
 
-        public ApiService(GaskaApiSettings apiCredentials, string connectionString)
+        public ApiService(GaskaApiSettings apiCredentials, int margin, string connectionString)
         {
             _apiSettings = apiCredentials;
+            _margin = margin;
             _connectionString = connectionString;
         }
 
@@ -75,17 +78,31 @@ namespace TechagroApiSync.Services
                                     {
                                         cmd.CommandType = CommandType.StoredProcedure;
 
-                                        // Required by proc
-                                        cmd.Parameters.AddWithValue("@NAZWA", (object)apiProduct.Name ?? DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@NAZWA_ORYG", (object)apiProduct.Name ?? DBNull.Value);
+                                        string name = apiProduct.Name;
+
+                                        if (!string.IsNullOrWhiteSpace(name))
+                                        {
+                                            // Match leading product code (numbers, dots, slashes, letters)
+                                            var match = Regex.Match(name, @"^(?<code>[0-9A-Za-z./x-]+)\s+(?<rest>.+)$");
+
+                                            if (match.Success)
+                                            {
+                                                name = $"{match.Groups["rest"].Value} {match.Groups["code"].Value}";
+                                            }
+                                        }
+
+                                        cmd.Parameters.AddWithValue("@NAZWA", (object)name ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@STAN", (object)apiProduct.InStock ?? 0);
                                         cmd.Parameters.AddWithValue("@INDEKS_KATALOGOWY", (object)apiProduct.CodeGaska ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@CENA_ZAKUPU_BRUTTO", (object)apiProduct.GrossPrice ?? 0);
                                         cmd.Parameters.AddWithValue("@CENA_ZAKUPU_NETTO", (object)apiProduct.NetPrice ?? 0);
+                                        cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO", apiProduct.GrossPrice * ((_margin / 100m) + 1));
+                                        cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_NETTO", apiProduct.NetPrice * ((_margin / 100m) + 1));
                                         cmd.Parameters.AddWithValue("@KOD_KRESKOWY", (object)apiProduct.Ean ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@WAGA", (object)apiProduct.GrossWeight ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@PRODUCENT", (object)apiProduct.SupplierName ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@ID_PRODUCENTA", (object)apiProduct.Id ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@UNIT", (object)apiProduct.Unit ?? DBNull.Value);
 
                                         await cmd.ExecuteNonQueryAsync();
                                     }
@@ -233,13 +250,69 @@ namespace TechagroApiSync.Services
                                 }
                             }
 
+                            string TruncateHtml(string html, int maxLength)
+                            {
+                                if (string.IsNullOrEmpty(html) || html.Length <= maxLength)
+                                    return html;
+
+                                // Find the last safe closing tag before the limit
+                                int lastLiClose = html.LastIndexOf("</li>", maxLength, StringComparison.OrdinalIgnoreCase);
+                                int lastPClose = html.LastIndexOf("</p>", maxLength, StringComparison.OrdinalIgnoreCase);
+                                int lastDivClose = html.LastIndexOf("</div>", maxLength, StringComparison.OrdinalIgnoreCase);
+
+                                // Choose the last valid cutoff point
+                                int cutoff = Math.Max(lastLiClose, Math.Max(lastPClose, lastDivClose));
+                                if (cutoff == -1) cutoff = maxLength;
+
+                                // Find actual closing tag length
+                                string tag = null;
+                                if (cutoff == lastLiClose) tag = "</li>";
+                                else if (cutoff == lastPClose) tag = "</p>";
+                                else if (cutoff == lastDivClose) tag = "</div>";
+
+                                int cutoffLength = tag?.Length ?? 0;
+                                if (cutoff + cutoffLength > html.Length)
+                                    cutoffLength = 0;
+
+                                string truncated = html.Substring(0, Math.Min(cutoff + cutoffLength, html.Length));
+
+                                // Ensure all opened tags are closed properly
+                                var stack = new Stack<string>();
+                                var regex = new Regex(@"</?([a-zA-Z0-9]+)[^>]*>");
+                                foreach (Match match in regex.Matches(truncated))
+                                {
+                                    if (!match.Value.StartsWith("</"))
+                                        stack.Push(match.Groups[1].Value);
+                                    else if (stack.Count > 0 && stack.Peek().Equals(match.Groups[1].Value, StringComparison.OrdinalIgnoreCase))
+                                        stack.Pop();
+                                }
+
+                                // Close any still-open tags, but keep length <= maxLength
+                                while (stack.Count > 0)
+                                {
+                                    string closeTag = $"</{stack.Pop()}>";
+                                    if (truncated.Length + closeTag.Length > maxLength)
+                                        break; // stop if adding would exceed limit
+                                    truncated += closeTag;
+                                }
+
+                                // Final safety: hard cut if still too long
+                                if (truncated.Length > maxLength)
+                                    truncated = truncated.Substring(0, maxLength);
+
+                                return truncated;
+                            }
+
+                            string nowyOpis = opisBuilder?.ToString() ?? string.Empty;
+                            nowyOpis = TruncateHtml(nowyOpis, 1000);
+
                             // Upsert product
                             using (var cmd = new SqlCommand("dbo.UpdateProductDescription", connection))
                             {
                                 cmd.CommandType = CommandType.StoredProcedure;
 
                                 cmd.Parameters.AddWithValue("@INDEKS_KATALOGOWY", p.CodeGaska ?? (object)DBNull.Value);
-                                cmd.Parameters.AddWithValue("@NowyOpis", opisBuilder ?? (object)DBNull.Value);
+                                cmd.Parameters.AddWithValue("@NowyOpis", nowyOpis ?? (object)DBNull.Value);
 
                                 await cmd.ExecuteNonQueryAsync();
                             }
@@ -254,23 +327,24 @@ namespace TechagroApiSync.Services
 
                                     byte[] imageData = await client.GetByteArrayAsync(img.Url);
 
-                                    using (var cmdImg = new SqlCommand("UpsertProductImage", connection))
+                                    using (var cmdImg = new SqlCommand("dbo.UpsertProductImage", connection))
                                     {
                                         cmdImg.CommandType = CommandType.StoredProcedure;
-                                        cmdImg.Parameters.AddWithValue("@INDEKS", p.CodeGaska);
-                                        cmdImg.Parameters.AddWithValue("@DANE", imageData);
-                                        cmdImg.Parameters.AddWithValue("@NAZWA_PLIKU", img.Title ?? "image");
+
+                                        cmdImg.Parameters.Add("@INDEKS", SqlDbType.VarChar, 20).Value = p.CodeGaska ?? (object)DBNull.Value;
+                                        cmdImg.Parameters.Add("@NAZWA_PLIKU", SqlDbType.VarChar, 100).Value = img.Title ?? "image";
+                                        cmdImg.Parameters.Add("@DANE", SqlDbType.VarBinary, -1).Value = imageData;
 
                                         await cmdImg.ExecuteNonQueryAsync();
                                     }
                                 }
                             }
 
-                            Log.Information($"Upserted product {p.CodeGaska}");
+                            Log.Information($"Inserted/updated product {p.CodeGaska}");
                         }
                         catch (Exception ex)
                         {
-                            Log.Error(ex, $"Error processing PLU {plu}");
+                            Log.Error(ex, $"Error processing product {plu}");
                         }
                         finally
                         {

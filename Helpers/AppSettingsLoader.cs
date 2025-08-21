@@ -26,6 +26,8 @@ namespace TeachagroApiSync.Helpers
 
         public static int GetLogsExpirationDays() => GetInt("LogsExpirationDays", 14);
 
+        public static int GetMargin() => GetInt("Margin%", 25);
+
         public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(GetInt("FetchIntervalMinutes", 60));
 
         public static string GetConnenctionString() => ConfigurationManager.ConnectionStrings["DefaultConnectionString"].ToString();

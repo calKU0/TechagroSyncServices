@@ -23,6 +23,7 @@ namespace TeachagroApiSync
 
         private readonly TimeSpan _interval;
         private readonly int _logsExpirationDays;
+        private readonly int _margin;
         private readonly string _connectionString;
 
         // Services
@@ -37,11 +38,12 @@ namespace TeachagroApiSync
             // App Settings initialization
             _apiSettings = AppSettingsLoader.LoadApiSettings();
             _interval = AppSettingsLoader.GetFetchInterval();
+            _margin = AppSettingsLoader.GetMargin();
             _logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();
             _connectionString = AppSettingsLoader.GetConnenctionString();
 
             // Services initialization
-            _apiService = new ApiService(_apiSettings, _connectionString);
+            _apiService = new ApiService(_apiSettings, _margin, _connectionString);
 
             InitializeComponent();
         }
@@ -78,13 +80,13 @@ namespace TeachagroApiSync
                 Log.Information("Basic product sync completed.");
 
                 // 2.Getting detailed info about products that are not in db yet
-                //if (_lastProductDetailsSyncDate.Date < DateTime.Today)
-                //{
-                //    await _apiService.SyncProductDetails();
-                //    _lastProductDetailsSyncDate = DateTime.Today;
+                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
+                {
+                    await _apiService.SyncProductDetails();
+                    _lastProductDetailsSyncDate = DateTime.Today;
 
-                //    Log.Information("Detailed product sync completed.");
-                //}
+                    Log.Information("Detailed product sync completed.");
+                }
 
                 DateTime nextRun = _lastRunTime.Add(_interval);
                 Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
@@ -96,3 +98,5 @@ namespace TeachagroApiSync
         }
     }
 }
+
+//1230
