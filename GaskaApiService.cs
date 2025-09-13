@@ -57,7 +57,7 @@ namespace TeachagroApiSync
                 async _ => await TimerTickAsync(),
                 null,
                 TimeSpan.Zero,
-                _interval
+                Timeout.InfiniteTimeSpan
             );
 
             Log.Information("Service started. First run immediately. Interval: {Interval}", _interval);
@@ -80,20 +80,24 @@ namespace TeachagroApiSync
                 Log.Information("Basic product sync completed.");
 
                 // 2.Getting detailed info about products that are not in db yet
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
+                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 3 && DateTime.Now.Hour <= 8)
                 {
                     await _apiService.SyncProductDetails();
                     _lastProductDetailsSyncDate = DateTime.Today;
 
                     Log.Information("Detailed product sync completed.");
                 }
-
-                DateTime nextRun = _lastRunTime.Add(_interval);
-                Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during API synchronization.");
+            }
+            finally
+            {
+                DateTime nextRun = DateTime.Now.AddHours(_interval.TotalHours);
+                _timer.Change(_interval, Timeout.InfiniteTimeSpan);
+
+                Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
             }
         }
     }
