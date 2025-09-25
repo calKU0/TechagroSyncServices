@@ -4,18 +4,39 @@
 
 ## Overview
 
-A Windows Service application that fetches data from an external API inserts it into a database.
+**TechagroApiSync** is a set of Windows Services that integrate with multiple supplier APIs to automatically fetch data and insert it into a database.  
+Each service is independently responsible for processing a different supplier’s API and is fully logged using **Serilog**.
+
+## Services
+
+- **TechagroApiSync.Gaska**
+
+  - Fetches data from the **Gaska API** (JSON format)
+  - Inserts parsed records into the database
+
+- **TechagroApiSync.Agroland**
+
+  - Fetches data from the **Agroland API** (XML format)
+  - Transforms and stores results in the database
+
+- **TechagroApiSync.Agroparts**
+  - Fetches data from the **Agro-parts API** (CSV format)
+  - Cleans and inserts data into the database
 
 ## Features
 
-- Automated data retrieval
-- Secure API communication
-- Efficient data storage
+- Automated supplier data synchronization
+- Format-specific parsing (JSON, XML, CSV)
+- Structured logging with **Serilog**
+- Reliable database integration
 
 ## Technologies Used
 
 - **Frameworks:** .NET Framework
-- **Technologies:** C#, REST API, SQL Server
+- **Languages:** C#
+- **Data Sources:** JSON, XML, CSV APIs
+- **Database:** SQL Server
+- **Logging:** Serilog
 
 ## License
 
