@@ -19,8 +19,8 @@ Each service is independently responsible for processing a different supplier’
   - Fetches data from the **Agroland API** (XML format)
   - Transforms and stores results in the database
 
-- **TechagroApiSync.Agroparts**
-  - Fetches data from the **Agro-parts API** (CSV format)
+- **TechagroApiSync.Amaparts**
+  - Fetches data from the **Ama-parts API** (CSV format)
   - Cleans and inserts data into the database
 
 ## Features
