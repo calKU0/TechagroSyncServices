@@ -5,14 +5,14 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TechAgroApiSync.Amaparts
+namespace TechagroApiSync.Amaparts
 {
     internal static class Program
     {
         /// <summary>
         /// Główny punkt wejścia dla aplikacji.
         /// </summary>
-        static void Main()
+        private static void Main()
         {
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]

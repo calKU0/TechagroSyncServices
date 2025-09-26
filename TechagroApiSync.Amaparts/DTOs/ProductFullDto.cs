@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TechAgroApiSync.Amaparts.DTOs
+namespace TechagroApiSync.Amaparts.DTOs
 {
     public class ProductFullDto
     {

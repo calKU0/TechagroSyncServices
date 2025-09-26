@@ -1,4 +1,4 @@
-﻿namespace TechAgroApiSync.Amaparts
+﻿namespace TechagroApiSync.Amaparts
 {
     partial class AmapartsApiSyncService
     {

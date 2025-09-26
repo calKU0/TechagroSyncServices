@@ -14,7 +14,7 @@ using TechagroApiSync.Amaparts.Services;
 using TechagroApiSync.Shared.Logging;
 using TechagroApiSync.Shared.Repositories;
 
-namespace TechAgroApiSync.Amaparts
+namespace TechagroApiSync.Amaparts
 {
     public partial class AmapartsApiSyncService : ServiceBase
     {

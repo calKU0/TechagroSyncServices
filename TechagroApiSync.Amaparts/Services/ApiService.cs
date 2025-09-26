@@ -15,7 +15,6 @@ using TechagroApiSync.Amaparts.Helpers;
 using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Helpers;
 using TechagroApiSync.Shared.Repositories;
-using TechAgroApiSync.Amaparts.DTOs;
 
 namespace TechagroApiSync.Amaparts.Services
 {
