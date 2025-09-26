@@ -124,8 +124,8 @@ namespace TechagroApiSync.Amaparts.Services
                                 Vat = 23,
                                 Weight = 0,
                                 Brand = product.Manufacturer,
-                                Unit = "szt",
-                                IntegrationCompany = "AMAPARTS"
+                                Unit = "szt.",
+                                IntegrationCompany = "AMA"
                             };
 
                             int result = 1;
