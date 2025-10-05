@@ -1,25 +1,25 @@
-# TechagroApiSync
+# TechagroSyncServices
 
 > 💼 **Commercial Project** — part of a private or client-facing initiative.
 
 ## Overview
 
-**TechagroApiSync** is a set of Windows Services that integrate with multiple supplier APIs to automatically fetch data and insert it into a database.  
+**TechagroSyncServices** is a set of Windows Services that integrate with multiple supplier APIs to automatically fetch data and insert it into a database.  
 Each service is independently responsible for processing a different supplier’s API and is fully logged using **Serilog**.
 
 ## Services
 
-- **TechagroApiSync.Gaska**
+- **TechagroSyncServices.Gaska**
 
   - Fetches data from the **Gaska API** (JSON format)
   - Inserts parsed records into the database
 
-- **TechagroApiSync.Agroland**
+- **TechagroSyncServices.Agroland**
 
   - Fetches data from the **Agroland API** (XML format)
   - Transforms and stores results in the database
 
-- **TechagroApiSync.Amaparts**
+- **TechagroSyncServices.Amaparts**
   - Fetches data from the **Ama-parts API** (CSV format)
   - Cleans and inserts data into the database
 
