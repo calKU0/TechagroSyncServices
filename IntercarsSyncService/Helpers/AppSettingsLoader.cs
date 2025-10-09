@@ -1,0 +1,46 @@
+﻿using System;
+using System.Configuration;
+using IntercarsSyncService.Settings;
+
+namespace IntercarsSyncService.Helpers
+{
+    public static class AppSettingsLoader
+    {
+        public static IntercarsApiSettings LoadApiSettings()
+        {
+            return new IntercarsApiSettings
+            {
+                BaseUrl = GetString("IntercarsApiBaseUrl"),
+                Username = GetString("IntercarsApUsername"),
+                Password = GetString("IntercarsApPassword"),
+            };
+        }
+
+        public static int GetLogsExpirationDays() => GetInt("LogsExpirationDays", 14);
+
+        public static int GetMargin() => GetInt("Margin%", 25);
+
+        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(GetInt("FetchIntervalMinutes", 60));
+
+        public static string GetConnenctionString() => ConfigurationManager.ConnectionStrings["DefaultConnectionString"].ToString();
+
+        private static string GetString(string key, bool required = true)
+        {
+            var value = ConfigurationManager.AppSettings[key];
+
+            if (required && string.IsNullOrWhiteSpace(value))
+                throw new ConfigurationErrorsException($"Missing required appSetting: '{key}'");
+
+            return value;
+        }
+
+        private static int GetInt(string key, int defaultValue)
+        {
+            var raw = ConfigurationManager.AppSettings[key];
+            if (int.TryParse(raw, out int result))
+                return result;
+
+            return defaultValue;
+        }
+    }
+}
