@@ -8,7 +8,7 @@ using System.Linq;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 
-namespace IntercarsSyncService
+namespace AmapartsSyncService
 {
     [RunInstaller(true)]
     public partial class ProjectInstaller : System.Configuration.Install.Installer

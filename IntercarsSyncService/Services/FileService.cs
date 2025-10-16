@@ -59,8 +59,8 @@ namespace IntercarsSyncService.Services
 
                 Log.Information("Merged {Count} products", fullProducts.Count);
 
-                var productSync = new ProductSyncService(_productRepo);
-                await productSync.SyncToDatabaseAsync(fullProducts);
+                //var productSync = new ProductSyncService(_productRepo);
+                //await productSync.SyncToDatabaseAsync(fullProducts);
 
                 Log.Information("Product synchronization completed successfully.");
             }
