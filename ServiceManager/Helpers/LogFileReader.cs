@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ServiceManager.Helpers
 {
@@ -20,7 +18,7 @@ namespace ServiceManager.Helpers
             int newlines = 0;
             var buffer = new byte[64 * 1024];
 
-            while (pos > 0 && newlines <= lineCount)
+            while (pos > 0)
             {
                 int toRead = (int)Math.Min(buffer.Length, pos);
                 pos -= toRead;
@@ -32,16 +30,20 @@ namespace ServiceManager.Helpers
                     if (buffer[i] == (byte)'\n')
                     {
                         newlines++;
-                        if (newlines > lineCount)
+                        if (newlines == lineCount)
                         {
                             long start = pos + i + 1;
-                            return (ReadForwardLines(path, start, fileLen), start, false);
+                            var lines = ReadForwardLines(path, start, fileLen);
+                            bool reachedStart = start <= 0;
+                            return (lines, start, reachedStart);
                         }
                     }
                 }
             }
 
-            return (ReadForwardLines(path, 0, fileLen), 0, true);
+            // read entire file if we hit the start
+            var all = ReadForwardLines(path, 0, fileLen);
+            return (all, 0, true);
         }
 
         public static (List<string> lines, long newStart, bool reachedStart)
@@ -55,7 +57,7 @@ namespace ServiceManager.Helpers
             int newlines = 0;
             var buffer = new byte[64 * 1024];
 
-            while (pos > 0 && newlines < lineCount)
+            while (pos > 0)
             {
                 int toRead = (int)Math.Min(buffer.Length, pos);
                 pos -= toRead;
@@ -71,12 +73,15 @@ namespace ServiceManager.Helpers
                         {
                             long start = pos + i + 1;
                             var lines = ReadForwardLines(path, start, currentStartOffset);
-                            return (lines, start, start == 0);
+                            bool reachedStart = start <= 0;
+                            Debug.WriteLine($"[ReadPreviousLines] start={start}, current={currentStartOffset}, reached={reachedStart}, count={lines.Count}");
+                            return (lines, start, reachedStart);
                         }
                     }
                 }
             }
 
+            // reached file start
             var all = ReadForwardLines(path, 0, currentStartOffset);
             return (all, 0, true);
         }
@@ -97,41 +102,13 @@ namespace ServiceManager.Helpers
             return result;
         }
 
-        private sealed class LimitedStream : Stream
-        {
-            private readonly Stream _base;
-            private readonly long _limit;
-            private long _read;
-
-            public LimitedStream(Stream @base, long limit) { _base = @base; _limit = limit; }
-            public override bool CanRead => true;
-            public override bool CanSeek => false;
-            public override bool CanWrite => false;
-            public override long Length => _limit;
-            public override long Position { get => _read; set => throw new NotSupportedException(); }
-            public override void Flush() => _base.Flush();
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                var remain = _limit - _read;
-                if (remain <= 0) return 0;
-                count = (int)Math.Min(count, remain);
-                var n = _base.Read(buffer, offset, count);
-                _read += n;
-                return n;
-            }
-
-            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
-            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        }
         public static List<string> ReadNewLines(string path, ref long lastReadOffset)
         {
             var result = new List<string>();
-
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             if (lastReadOffset > fs.Length)
-                lastReadOffset = fs.Length; // file was truncated (log rotated)
+                lastReadOffset = fs.Length;
 
             fs.Position = lastReadOffset;
             using var sr = new StreamReader(fs);
@@ -143,6 +120,39 @@ namespace ServiceManager.Helpers
             lastReadOffset = fs.Position;
             return result;
         }
-    }
 
+        private sealed class LimitedStream : Stream
+        {
+            private readonly Stream _base;
+            private readonly long _limit;
+            private long _read;
+
+            public LimitedStream(Stream @base, long limit)
+            { _base = @base; _limit = limit; }
+
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => _limit;
+            public override long Position { get => _read; set => throw new NotSupportedException(); }
+
+            public override void Flush() => _base.Flush();
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                var remain = _limit - _read;
+                if (remain <= 0) return 0;
+                count = (int)Math.Min(count, remain);
+                var n = _base.Read(buffer, offset, count);
+                _read += n;
+                return n;
+            }
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
+    }
 }

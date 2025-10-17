@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.ServiceProcess;
@@ -23,8 +24,8 @@ namespace ServiceManager
         private FileSystemWatcher _logWatcher;
         public ObservableCollection<ServiceItem> AvailableServices { get; } = new ObservableCollection<ServiceItem>();
         private ServiceItem? _selectedService;
-        private const int InitialTailLines = 2000;
-        private const int PageLines = 1000;
+        private const int InitialTailLines = 5000;
+        private const int PageLines = 5000;
 
         private readonly BulkObservableCollection<LogLine> _currentLogLines = new();
         private string? _currentPath;
@@ -161,6 +162,8 @@ namespace ServiceManager
 
             LvLogFiles.ItemsSource = logFiles;
             IcLogLines.ItemsSource = _currentLogLines;
+
+            HookLogLinesScrollViewer();
 
             if (refreshTimer != null)
             {
@@ -498,9 +501,40 @@ namespace ServiceManager
 
         private void IcLogLines_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            // np. doładowywanie przy dojściu do góry
             if (e.VerticalOffset <= 0)
                 _ = LoadMoreAsync();
+        }
+
+        private void HookLogLinesScrollViewer()
+        {
+            // Use Dispatcher to ensure layout is ready
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var sv = GetScrollViewer(IcLogLines);
+                if (sv != null)
+                {
+                    sv.ScrollChanged -= IcLogLines_ScrollChanged; // prevent double hook
+                    sv.ScrollChanged += IcLogLines_ScrollChanged;
+                }
+                else
+                {
+                    Debug.WriteLine("ScrollViewer still null! Wait until ListBox is visible.");
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private ScrollViewer? GetScrollViewer(DependencyObject dep)
+        {
+            if (dep is ScrollViewer viewer)
+                return viewer;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(dep); i++)
+            {
+                var child = VisualTreeHelper.GetChild(dep, i);
+                var result = GetScrollViewer(child);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         private async void LoadSelectedFileContent()
