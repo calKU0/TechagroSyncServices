@@ -26,15 +26,21 @@ namespace IntercarsSyncService.Helpers
 
                 using (var csvStream = csvEntry.Open())
                 using (var reader = new StreamReader(csvStream, Encoding.UTF8))
-                using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
-                    Delimiter = ";",
-                    HasHeaderRecord = true,
-                    MissingFieldFound = null,
-                    BadDataFound = null
-                }))
-                {
-                    return csv.GetRecords<T>().ToList();
+                    var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                    {
+                        Delimiter = ";",
+                        HasHeaderRecord = true,
+                        MissingFieldFound = null,
+                        BadDataFound = null,
+                        PrepareHeaderForMatch = args => args.Header?.Replace("_", "")?.ToLowerInvariant()
+                    };
+
+                    using (var csv = new CsvReader(reader, config))
+                    {
+                        var records = csv.GetRecords<T>().ToList();
+                        return records;
+                    }
                 }
             }
         }

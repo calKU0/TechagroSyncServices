@@ -1,4 +1,5 @@
 ﻿using CsvHelper;
+using HtmlAgilityPack;
 using IntercarsSyncService.DTOs;
 using IntercarsSyncService.Helpers;
 using IntercarsSyncService.Settings;
@@ -9,7 +10,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Repositories;
@@ -90,7 +93,7 @@ namespace IntercarsSyncService.Services
         private async Task<List<StockPriceDto>> GetLatestStockPriceAsync()
         {
             Log.Information("Getting stock and price data...");
-            var latestFile = await GetLatestFileAsync("stockPrice");
+            var latestFile = await GetLatestFileAsync("Stock_price");
             if (latestFile == null) return new List<StockPriceDto>();
 
             using (var client = HttpClientHelper.CreateAuthorizedClient(_apiSettings.Username, _apiSettings.Password))
@@ -103,7 +106,7 @@ namespace IntercarsSyncService.Services
         private async Task<List<ImageResponse>> GetLatestProductImagesAsync()
         {
             Log.Information("Getting images...");
-            var latestFile = await GetLatestFileAsync("pictures");
+            var latestFile = await GetLatestFileAsync("Pictures");
             if (latestFile == null) return new List<ImageResponse>();
 
             using (var client = HttpClientHelper.CreateAuthorizedClient(_apiSettings.Username, _apiSettings.Password))
@@ -118,15 +121,64 @@ namespace IntercarsSyncService.Services
         // -------------------------------------
         private async Task<ApiFile> GetLatestFileAsync(string endpoint)
         {
-            string url = $"{_apiSettings.BaseUrl}/customer/{_apiSettings.Username}/{endpoint}";
+            string url = $"{_apiSettings.BaseUrl.TrimEnd('/')}/customer/{_apiSettings.Username}/{endpoint}";
 
             using (var client = HttpClientHelper.CreateAuthorizedClient(_apiSettings.Username, _apiSettings.Password))
             {
-                var response = await client.GetStringAsync(url);
-                var files = JsonConvert.DeserializeObject<List<ApiFile>>(response);
-                return files?
+                var response = await client.GetAsync(url);
+
+                if (response.StatusCode == HttpStatusCode.MovedPermanently || response.StatusCode == HttpStatusCode.Redirect)
+                {
+                    var redirectUrl = response.Headers.Location?.ToString();
+                    if (!string.IsNullOrEmpty(redirectUrl))
+                        response = await client.GetAsync(redirectUrl);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    Log.Information($"Status: {response.StatusCode} | Content: {content}");
+                    return null;
+                }
+
+                var html = await response.Content.ReadAsStringAsync();
+
+                var doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+                // Select <a> elements inside the <table>
+                var links = doc.DocumentNode.SelectNodes("//table//a")
+                    ?.Select(a => new
+                    {
+                        FileName = a.InnerText.Trim(),
+                        Href = a.GetAttributeValue("href", "")
+                    })
+                    .Where(f => f.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (links == null || links.Count == 0)
+                    return null;
+
+                // Extract date from filename
+                var files = links
+                    .Select(f =>
+                    {
+                        DateTime? date = null;
+                        var match = System.Text.RegularExpressions.Regex.Match(f.FileName, @"(\d{4}-\d{2}-\d{2})");
+                        if (match.Success && DateTime.TryParse(match.Value, out var parsed))
+                            date = parsed;
+
+                        return new ApiFile
+                        {
+                            FileName = f.FileName,
+                            Url = new Uri(new Uri(url + "/"), f.Href).ToString(),
+                            DateCreated = date
+                        };
+                    })
                     .OrderByDescending(f => f.DateCreated ?? DateTime.MinValue)
-                    .FirstOrDefault();
+                    .ToList();
+
+                return files.FirstOrDefault();
             }
         }
 
@@ -144,7 +196,6 @@ namespace IntercarsSyncService.Services
                     TowKod = g.Key,
                     TotalAvailability = g.Sum(x => x.Availability),
                     WholesalePrice = g.Average(x => x.WholesalePrice),
-                    CorePrice = g.Average(x => x.CorePrice),
                     SumPrice = g.Average(x => x.SumPrice),
                     RetailPrice = g.Average(x => x.RetailPrice)
                 })
@@ -191,7 +242,6 @@ namespace IntercarsSyncService.Services
                 {
                     dto.TotalAvailability = stock.TotalAvailability;
                     dto.WholesalePrice = stock.WholesalePrice;
-                    dto.CorePrice = stock.CorePrice;
                     dto.SumPrice = stock.SumPrice;
                     dto.RetailPrice = stock.RetailPrice;
                 }

@@ -11,8 +11,8 @@ namespace IntercarsSyncService.Helpers
             return new IntercarsApiSettings
             {
                 BaseUrl = GetString("IntercarsApiBaseUrl"),
-                Username = GetString("IntercarsApUsername"),
-                Password = GetString("IntercarsApPassword"),
+                Username = GetString("IntercarsApiUsername"),
+                Password = GetString("IntercarsApiPassword"),
             };
         }
 

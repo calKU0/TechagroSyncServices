@@ -7,7 +7,7 @@
     <ProjectGuid>{6B102575-0356-46D9-9A62-175BAAFD5AFB}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>AgrolandSyncService</RootNamespace>
-    <AssemblyName>AgrolandApiSync</AssemblyName>
+    <AssemblyName>AgrolandSyncService</AssemblyName>
     <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
