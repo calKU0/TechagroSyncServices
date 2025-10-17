@@ -7,20 +7,36 @@
 **TechagroSyncServices** is a set of Windows Services that integrate with multiple supplier APIs to automatically fetch data and insert it into a database.  
 Each service is independently responsible for processing a different supplier’s API and is fully logged using **Serilog**.
 
+Additionally, the project includes a **Service Manager**, a user-facing interface that allows users to:
+
+- Select which service they want to observe
+- View structured logs in real-time
+- Start, stop, or restart services
+- Monitor service status
+- View or modify service configuration settings
+
+This makes monitoring and managing all services simple and intuitive.
+
 ## Services
 
-- **TechagroSyncServices.Gaska**
+- **GaskaSyncService**
 
   - Fetches data from the **Gaska API** (JSON format)
   - Inserts parsed records into the database
 
-- **TechagroSyncServices.Agroland**
+- **AgrolandSyncService**
 
   - Fetches data from the **Agroland API** (XML format)
   - Transforms and stores results in the database
 
-- **TechagroSyncServices.Amaparts**
-  - Fetches data from the **Ama-parts API** (CSV format)
+- **AmapartsSyncService**
+
+  - Reads data from **Ama-parts CSV files** downloaded from their website (CSV format)
+  - Cleans and inserts data into the database
+
+- **IntercarsSyncService**
+
+  - Reads data from **Intercars CSV files** downloaded from their website (CSV format)
   - Cleans and inserts data into the database
 
 ## Features
@@ -29,6 +45,20 @@ Each service is independently responsible for processing a different supplier’
 - Format-specific parsing (JSON, XML, CSV)
 - Structured logging with **Serilog**
 - Reliable database integration
+
+## Screenshots
+
+### Configurator - Choosing Service View
+
+![Configurator Service](./Screenshots/service_pick_view.png)
+
+### Configurator - Log View
+
+![Configurator Log](./Screenshots/log_view.png)
+
+### Configurator - Settings
+
+![Configurator Settings](./Screenshots/settings_view.png)
 
 ## Technologies Used
 
