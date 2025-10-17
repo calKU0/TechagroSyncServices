@@ -107,11 +107,11 @@
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
-    <Compile Include="AgrolandApiSyncService.cs">
+    <Compile Include="AgrolandSyncService.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="AgrolandApiSyncService.Designer.cs">
-      <DependentUpon>AgrolandApiSyncService.cs</DependentUpon>
+    <Compile Include="AgrolandSyncService.Designer.cs">
+      <DependentUpon>AgrolandSyncService.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

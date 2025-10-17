@@ -16,7 +16,7 @@ using TechagroSyncServices.Shared.Repositories;
 
 namespace AmapartsSyncService
 {
-    public partial class AmapartsApiSyncService : ServiceBase
+    public partial class AmapartsSyncService : ServiceBase
     {
         private readonly TimeSpan _interval;
 
@@ -30,7 +30,7 @@ namespace AmapartsSyncService
         private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
         private DateTime _lastRunTime;
 
-        public AmapartsApiSyncService()
+        public AmapartsSyncService()
         {
             // Serilog configuration and initialization
             int logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();

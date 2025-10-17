@@ -1,16 +1,16 @@
-﻿namespace AmapartsSyncService
+﻿namespace AgrolandSyncService
 {
-    partial class AmapartsApiSyncService
+    partial class AgrolandSyncService
     {
         /// <summary> 
-        /// Wymagana zmienna projektanta.
+        /// Required designer variable.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
         /// <summary>
-        /// Wyczyść wszystkie używane zasoby.
+        /// Clean up any resources being used.
         /// </summary>
-        /// <param name="disposing">prawda, jeżeli zarządzane zasoby powinny zostać zlikwidowane; Fałsz w przeciwnym wypadku.</param>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -20,11 +20,11 @@
             base.Dispose(disposing);
         }
 
-        #region Kod wygenerowany przez Projektanta składników
+        #region Component Designer generated code
 
         /// <summary> 
-        /// Metoda wymagana do obsługi projektanta — nie należy modyfikować 
-        /// jej zawartości w edytorze kodu.
+        /// Required method for Designer support - do not modify 
+        /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent()
         {

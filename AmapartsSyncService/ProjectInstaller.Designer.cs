@@ -40,8 +40,8 @@
             // serviceInstaller1
             // 
             this.serviceInstaller1.Description = "Serwis pobierający towary z Ama-parts poprzez API";
-            this.serviceInstaller1.DisplayName = "AmapartsApiService";
-            this.serviceInstaller1.ServiceName = "AmapartsApiService";
+            this.serviceInstaller1.DisplayName = "AmapartsSyncService";
+            this.serviceInstaller1.ServiceName = "AmapartsSyncService";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
             // ProjectInstaller

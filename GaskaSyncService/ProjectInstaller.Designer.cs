@@ -40,8 +40,8 @@
             // serviceInstaller1
             // 
             this.serviceInstaller1.Description = "Serwis pobierający towary z Gąska poprzez API";
-            this.serviceInstaller1.DisplayName = "GaskaApiService";
-            this.serviceInstaller1.ServiceName = "GaskaApiService";
+            this.serviceInstaller1.DisplayName = "GaskaSyncService";
+            this.serviceInstaller1.ServiceName = "GaskaSyncService";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
             // ProjectInstaller

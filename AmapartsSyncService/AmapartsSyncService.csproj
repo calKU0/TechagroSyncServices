@@ -86,11 +86,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AmapartsApiSyncService.cs">
+    <Compile Include="AmapartsSyncService.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="AmapartsApiSyncService.Designer.cs">
-      <DependentUpon>AmapartsApiSyncService.cs</DependentUpon>
+    <Compile Include="AmapartsSyncService.Designer.cs">
+      <DependentUpon>AmapartsSyncService.cs</DependentUpon>
     </Compile>
     <Compile Include="Settings\AgrolandApiSettings.cs" />
     <Compile Include="DTOs\ApiProductsResponse.cs" />

@@ -17,7 +17,7 @@ namespace AmapartsSyncService
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
-                new AmapartsApiSyncService()
+                new AmapartsSyncService()
             };
             ServiceBase.Run(ServicesToRun);
         }

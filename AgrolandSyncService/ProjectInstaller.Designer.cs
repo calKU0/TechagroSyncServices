@@ -40,7 +40,7 @@
             // serviceInstaller1
             // 
             this.serviceInstaller1.Description = "Serwis pobierający towary z Agroland poprzez API";
-            this.serviceInstaller1.DisplayName = "AgrolandApiService";
+            this.serviceInstaller1.DisplayName = "AgrolandSyncService";
             this.serviceInstaller1.ServiceName = "AgrolandApiSync";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 

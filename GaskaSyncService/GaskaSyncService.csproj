@@ -109,11 +109,11 @@
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
-    <Compile Include="GaskaApiSyncService.cs">
+    <Compile Include="GaskaSyncService.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="GaskaApiSyncService.Designer.cs">
-      <DependentUpon>GaskaApiSyncService.cs</DependentUpon>
+    <Compile Include="GaskaSyncService.Designer.cs">
+      <DependentUpon>GaskaSyncService.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

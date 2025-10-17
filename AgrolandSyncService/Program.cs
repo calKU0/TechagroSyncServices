@@ -12,7 +12,7 @@ namespace AgrolandSyncService
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
-                new AgrolandApiSyncService()
+                new AgrolandSyncService()
             };
             ServiceBase.Run(ServicesToRun);
         }

@@ -10,7 +10,7 @@ using TechagroSyncServices.Shared.Repositories;
 
 namespace AgrolandSyncService
 {
-    public partial class AgrolandApiSyncService : ServiceBase
+    public partial class AgrolandSyncService : ServiceBase
     {
         // Settings
         private readonly TimeSpan _interval;
@@ -25,7 +25,7 @@ namespace AgrolandSyncService
         private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
         private DateTime _lastRunTime;
 
-        public AgrolandApiSyncService()
+        public AgrolandSyncService()
         {
             // Serilog configuration and initialization
             int logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();
