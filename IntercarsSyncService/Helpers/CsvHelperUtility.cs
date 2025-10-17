@@ -27,7 +27,7 @@ namespace IntercarsSyncService.Helpers
                 using (var csvStream = csvEntry.Open())
                 using (var reader = new StreamReader(csvStream, Encoding.UTF8))
                 {
-                    var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                    var config = new CsvConfiguration(new CultureInfo("pl-PL"))
                     {
                         Delimiter = ";",
                         HasHeaderRecord = true,

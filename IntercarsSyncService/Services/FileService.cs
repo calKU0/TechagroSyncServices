@@ -62,8 +62,8 @@ namespace IntercarsSyncService.Services
 
                 Log.Information("Merged {Count} products", fullProducts.Count);
 
-                //var productSync = new ProductSyncService(_productRepo);
-                //await productSync.SyncToDatabaseAsync(fullProducts);
+                var productSync = new ProductSyncService(_productRepo);
+                await productSync.SyncToDatabaseAsync(fullProducts);
 
                 Log.Information("Product synchronization completed successfully.");
             }
@@ -202,13 +202,8 @@ namespace IntercarsSyncService.Services
                 .ToDictionary(x => x.TowKod, x => x);
         }
 
-        private List<FullProductDto> BuildFullProductDtos(
-            List<ProductResponse> products,
-            Dictionary<string, StockAggregationDto> aggregatedStock,
-            List<ImageResponse> images)
+        private List<FullProductDto> BuildFullProductDtos(List<ProductResponse> products, Dictionary<string, StockAggregationDto> aggregatedStock, List<ImageResponse> images)
         {
-            Log.Information("Building FullProductDto list...");
-
             var imageGroups = images
                 .GroupBy(i => i.TowKod)
                 .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortNr).ToList());

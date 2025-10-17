@@ -25,5 +25,14 @@ namespace IntercarsSyncService.Helpers
 
             return client;
         }
+
+        public static HttpClient CreateImageClient()
+        {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            client.DefaultRequestHeaders.Referrer = new Uri("https://intercars.eu/");
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("image/jpeg"));
+            return client;
+        }
     }
 }

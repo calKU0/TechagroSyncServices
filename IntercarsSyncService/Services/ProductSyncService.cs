@@ -17,6 +17,7 @@ namespace IntercarsSyncService.Services
     {
         private readonly IProductRepository _productRepo;
         private readonly int _margin;
+        private readonly HttpClient _imageClient = HttpClientHelper.CreateImageClient();
 
         public ProductSyncService(IProductRepository productRepo)
         {
@@ -101,13 +102,10 @@ namespace IntercarsSyncService.Services
                         {
                             try
                             {
-                                using (var client = new HttpClient())
-                                {
-                                    var imageData = await client.GetByteArrayAsync(img.ImageLink);
-                                    string imageId = img.TowKod + " + " + img.SortNr;
-                                    await _productRepo.UpsertProductImageAsync(product.TowKod, imageId, imageData);
-                                    Log.Information("Updated image for {Code}", product.TowKod);
-                                }
+                                var imageData = await _imageClient.GetByteArrayAsync(img.ImageLink);
+                                string imageId = img.TowKod + "_" + img.SortNr;
+                                await _productRepo.UpsertProductImageAsync(product.TowKod, imageId, imageData);
+                                Log.Information("Updated image for {Code}", product.TowKod);
                             }
                             catch (HttpRequestException httpEx)
                             {
