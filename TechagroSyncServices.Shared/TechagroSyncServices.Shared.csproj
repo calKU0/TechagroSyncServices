@@ -74,7 +74,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DTOs\MarginRange.cs" />
     <Compile Include="DTOs\ProductDto.cs" />
+    <Compile Include="Helpers\CalculateMargin.cs" />
     <Compile Include="Helpers\DescriptionHelper.cs" />
     <Compile Include="Logging\LogConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

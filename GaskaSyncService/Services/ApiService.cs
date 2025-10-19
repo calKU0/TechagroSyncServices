@@ -1,4 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using GaskaSyncService.DTOs;
+using GaskaSyncService.Helpers;
+using GaskaSyncService.Settings;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -8,10 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using GaskaSyncService.DTOs;
-using GaskaSyncService.Helpers;
 using TechagroSyncServices.Shared.DTOs;
-using GaskaSyncService.Settings;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
 

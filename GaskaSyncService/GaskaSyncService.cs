@@ -1,10 +1,10 @@
-﻿using Serilog;
+﻿using GaskaSyncService.Helpers;
+using GaskaSyncService.Services;
+using Serilog;
 using System;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
-using GaskaSyncService.Helpers;
-using GaskaSyncService.Services;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
 

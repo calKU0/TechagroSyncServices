@@ -1,6 +1,6 @@
-﻿using System;
+﻿using GaskaSyncService.Settings;
+using System;
 using System.Configuration;
-using GaskaSyncService.Settings;
 
 namespace GaskaSyncService.Helpers
 {

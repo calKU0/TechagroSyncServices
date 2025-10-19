@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace AmapartsSyncService.Settings
+﻿namespace AmapartsSyncService.Settings
 {
     public class AmapartsApiSettings
     {

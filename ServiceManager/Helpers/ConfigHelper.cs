@@ -1,10 +1,5 @@
 ﻿using ServiceManager.Models;
-using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ServiceManager.Helpers
 {
@@ -39,8 +34,21 @@ namespace ServiceManager.Helpers
             // Other settings
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
-            new ConfigField { Key = "Margin%", Label = "Własna marża (%)", Group = "Inne ustawienia" },
+            new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Inne ustawienia" },
         };
+
+        public static List<MarginRange> ParseMarginRanges(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return new List<MarginRange>();
+            return value.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(MarginRange.Parse)
+                        .ToList();
+        }
+
+        public static string SerializeMarginRanges(IEnumerable<MarginRange> ranges)
+        {
+            return string.Join(";", ranges.Select(r => r.ToString()));
+        }
 
         public static Dictionary<string, string> ParseConnectionString(string connString)
         {

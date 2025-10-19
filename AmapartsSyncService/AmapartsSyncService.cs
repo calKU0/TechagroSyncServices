@@ -1,16 +1,10 @@
-﻿using Serilog;
+﻿using AmapartsSyncService.Helpers;
+using AmapartsSyncService.Services;
+using Serilog;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Linq;
 using System.ServiceProcess;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AmapartsSyncService.Helpers;
-using AmapartsSyncService.Services;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
 

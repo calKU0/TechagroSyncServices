@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Xml.Serialization;
-
-namespace AmapartsSyncService.DTOs
+﻿namespace AmapartsSyncService.DTOs
 {
     public class ApiProductsResponse
     {

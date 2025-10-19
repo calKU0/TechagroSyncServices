@@ -1,4 +1,7 @@
-﻿using CsvHelper;
+﻿using AmapartsSyncService.DTOs;
+using AmapartsSyncService.Helpers;
+using AmapartsSyncService.Settings;
+using CsvHelper;
 using CsvHelper.Configuration;
 using Serilog;
 using System;
@@ -10,9 +13,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using AmapartsSyncService.DTOs;
-using AmapartsSyncService.Helpers;
-using AmapartsSyncService.Settings;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;

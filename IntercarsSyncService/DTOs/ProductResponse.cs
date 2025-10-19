@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace IntercarsSyncService.DTOs
+﻿namespace IntercarsSyncService.DTOs
 {
     public class ProductResponse
     {
@@ -25,5 +19,4 @@ namespace IntercarsSyncService.DTOs
         public bool BlockedReturn { get; set; }
         public string Gtu { get; set; }
     }
-
 }

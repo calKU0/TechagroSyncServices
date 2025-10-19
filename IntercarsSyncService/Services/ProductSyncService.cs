@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -16,13 +17,15 @@ namespace IntercarsSyncService.Services
     public class ProductSyncService
     {
         private readonly IProductRepository _productRepo;
-        private readonly int _margin;
+        private readonly decimal _defaulyMargin;
+        private readonly List<MarginRange> _marginRanges;
         private readonly HttpClient _imageClient = HttpClientHelper.CreateImageClient();
 
         public ProductSyncService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
-            _margin = AppSettingsLoader.GetMargin();
+            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncToDatabaseAsync(List<FullProductDto> products)
@@ -36,18 +39,21 @@ namespace IntercarsSyncService.Services
             {
                 try
                 {
+                    decimal applicableMargin = MarginHelper.CalculateMargin(product.WholesalePrice, _defaulyMargin, _marginRanges);
+
                     // 1. Upsert Product
                     var dto = new ProductDto
                     {
                         Id = 0,
                         Code = product.TowKod,
+                        TradingCode = product.IcIndex,
                         Ean = product.Barcodes.Split(',').FirstOrDefault(),
-                        Name = product.ShortDescription ?? product.Description,
+                        Name = product.Description + " " + product.IcIndex,
                         Quantity = product.TotalAvailability,
                         NetBuyPrice = product.WholesalePrice,
                         GrossBuyPrice = product.WholesalePrice * 1.23m,
-                        NetSellPrice = product.WholesalePrice * ((_margin / 100m) + 1),
-                        GrossSellPrice = product.WholesalePrice * 1.23m * ((_margin / 100m) + 1),
+                        NetSellPrice = product.WholesalePrice * ((applicableMargin / 100m) + 1),
+                        GrossSellPrice = product.WholesalePrice * 1.23m * ((applicableMargin / 100m) + 1),
                         Vat = 23,
                         Weight = product.PackageWeight ?? 0,
                         Brand = product.Manufacturer,
@@ -109,7 +115,7 @@ namespace IntercarsSyncService.Services
                             }
                             catch (HttpRequestException httpEx)
                             {
-                                Log.Error(httpEx, "Failed to download image for {Code}", product.TowKod);
+                                Log.Error(httpEx, "Failed to download image for {Code} from Url: {Url}", product.TowKod, img.ImageLink);
                             }
                         }
                     }

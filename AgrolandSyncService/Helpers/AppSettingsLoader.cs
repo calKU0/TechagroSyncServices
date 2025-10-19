@@ -1,6 +1,6 @@
-﻿using System;
+﻿using AgrolandSyncService.Settings;
+using System;
 using System.Configuration;
-using AgrolandSyncService.Settings;
 
 namespace AgrolandSyncService.Helpers
 {

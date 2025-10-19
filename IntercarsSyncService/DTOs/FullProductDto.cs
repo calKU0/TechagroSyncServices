@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace IntercarsSyncService.DTOs
 {
@@ -27,6 +23,7 @@ namespace IntercarsSyncService.DTOs
 
         // Stock & price aggregated fields
         public int TotalAvailability { get; set; }
+
         public decimal WholesalePrice { get; set; }
         public decimal CorePrice { get; set; }
         public decimal SumPrice { get; set; }
@@ -34,6 +31,5 @@ namespace IntercarsSyncService.DTOs
 
         // Images
         public List<ImageResponse> Images { get; set; } = new List<ImageResponse>();
-
     }
 }

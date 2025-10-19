@@ -27,6 +27,7 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.AddWithValue("@NAZWA", productDto.Name ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@STAN", productDto.Quantity);
                     cmd.Parameters.AddWithValue("@INDEKS_KATALOGOWY", productDto.Code ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@INDEKS_HANDLOWY", productDto.TradingCode ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@CENA_ZAKUPU_BRUTTO", productDto.GrossBuyPrice);
                     cmd.Parameters.AddWithValue("@CENA_ZAKUPU_NETTO", productDto.NetBuyPrice);
                     cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO", productDto.GrossSellPrice);

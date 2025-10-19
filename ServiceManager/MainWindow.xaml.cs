@@ -2,15 +2,13 @@
 using ServiceManager.Helpers;
 using ServiceManager.Models;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Configuration;
-using System.Data.Common;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -27,13 +25,18 @@ namespace ServiceManager
         private const int InitialTailLines = 5000;
         private const int PageLines = 5000;
 
-        private readonly BulkObservableCollection<LogLine> _currentLogLines = new();
+        private BulkObservableCollection<LogLine> _currentLogLines = new();
+        private BulkObservableCollection<LogLine> _filteredLogLines = new();
         private string? _currentPath;
         private long _loadedStartOffset = 0;
         private bool _isLoadingMore = false;
         private bool _reachedFileStart = false;
         private long _lastReadOffset = 0;
         private object _lastSelectedLog;
+        private StackPanel MarginRangesPanel = new StackPanel { Margin = new Thickness(6) };
+        private List<(TextBox Min, TextBox Max, TextBox Margin)> MarginTextBoxes = new();
+        private decimal _defaultMargin = 25;
+        private List<MarginRange> _marginRanges = new();
 
         public MainWindow()
         {
@@ -56,6 +59,41 @@ namespace ServiceManager
                 ServiceSelectionOverlay.Visibility = Visibility.Visible;
                 MainContentAreaNav.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private async Task LoadEntireFileWithFilterAsync()
+        {
+            if (LvLogFiles.SelectedItem is not LogFileItem item || !File.Exists(item.Path))
+                return;
+
+            _currentLogLines.Clear();
+
+            // Inicjalizujemy zmienną
+            string[] allLines = Array.Empty<string>();
+
+            // Czytamy plik w tle
+            await Task.Run(() =>
+            {
+                using var fs = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(fs);
+
+                var lines = new List<string>();
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    lines.Add(line);
+                }
+
+                allLines = lines.ToArray();
+            });
+
+            // Filtrujemy linie
+            var filteredLines = allLines.Select(ParseLogLine)
+                                        .Where(l => l.Level == LogLevel.Error || l.Level == LogLevel.Warning);
+
+            _currentLogLines.AddRange(filteredLines);
+
+            ApplyFilter(); // Aktualizujemy widok
         }
 
         private void InitLogWatcher()
@@ -161,7 +199,7 @@ namespace ServiceManager
             ConfigViewContainer.Visibility = Visibility.Collapsed;
 
             LvLogFiles.ItemsSource = logFiles;
-            IcLogLines.ItemsSource = _currentLogLines;
+            IcLogLines.ItemsSource = _filteredLogLines;
 
             HookLogLinesScrollViewer();
 
@@ -211,7 +249,7 @@ namespace ServiceManager
                 {
                     // update in-memory log lines
                     _currentLogLines.AddRange(newLines.Select(ParseLogLine));
-
+                    ApplyFilter();
                     // update warning/error counters
                     int newWarnings = newLines.Count(l => l.Contains("WRN]", StringComparison.Ordinal));
                     int newErrors = newLines.Count(l => l.Contains("ERR]", StringComparison.Ordinal));
@@ -244,110 +282,18 @@ namespace ServiceManager
                 var map = new ExeConfigurationFileMap { ExeConfigFilename = _selectedService.ExternalConfigPath };
                 var config = ConfigurationManager.OpenMappedExeConfiguration(map, ConfigurationUserLevel.None);
 
+                // --- Reset głównego panelu ---
                 ConfigStackPanel.Children.Clear();
+                MarginTextBoxes.Clear();
+                _marginRanges.Clear();
 
                 var groupedFields = ConfigHelper.AllFields.GroupBy(f => f.Group);
 
-                // Load connection strings
-                foreach (ConnectionStringSettings conn in config.ConnectionStrings.ConnectionStrings)
-                {
-                    if (conn.Name == "LocalSqlServer") continue;
+                LoadConnectionStrings(config);
+                LoadAppSettings(config, groupedFields);
+                LoadMargins(config);
 
-                    var groupBox = new GroupBox
-                    {
-                        Header = "Baza danych",
-                        Margin = new Thickness(0, 6, 0, 6)
-                    };
-                    var groupPanel = new StackPanel { Margin = new Thickness(6) };
-
-                    var connParts = ConfigHelper.ParseConnectionString(conn.ConnectionString)
-                        .Where(kv => !ConfigHelper.ExcludedConnectionStringKeys.Contains(kv.Key))
-                        .ToDictionary(kv => kv.Key, kv => kv.Value);
-
-                    foreach (var part in connParts)
-                    {
-                        var label = new TextBlock
-                        {
-                            Text = ConfigHelper.ConnectionStringKeyTranslations.TryGetValue(part.Key, out var translated) ? translated : part.Key,
-                            Margin = new Thickness(0, 4, 0, 4),
-                            VerticalAlignment = VerticalAlignment.Center
-                        };
-
-                        var textbox = new TextBox
-                        {
-                            Text = part.Value,
-                            Margin = new Thickness(0, 4, 0, 4),
-                            Tag = $"{conn.Name}|{part.Key}"  // we'll use this to save changes
-                        };
-
-                        var grid = new Grid();
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                        Grid.SetColumn(label, 0);
-                        Grid.SetColumn(textbox, 1);
-
-                        grid.Children.Add(label);
-                        grid.Children.Add(textbox);
-
-                        groupPanel.Children.Add(grid);
-                    }
-
-                    groupBox.Content = groupPanel;
-                    ConfigStackPanel.Children.Add(groupBox);
-                }
-
-                foreach (var group in groupedFields)
-                {
-                    // Keep only fields that exist in config
-                    var existingFields = group.Where(f => config.AppSettings.Settings.AllKeys.Contains(f.Key)).ToList();
-
-                    if (!existingFields.Any())
-                        continue; // skip empty groups
-
-                    var groupBox = new GroupBox { Header = group.Key, Margin = new Thickness(0, 6, 0, 6) };
-                    var groupPanel = new StackPanel { Margin = new Thickness(6) };
-
-                    foreach (var field in existingFields)
-                    {
-                        string value = config.AppSettings.Settings[field.Key]?.Value ?? "";
-
-                        var label = new TextBlock
-                        {
-                            Text = field.Label,
-                            Margin = new Thickness(0, 4, 0, 4),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            ToolTip = string.IsNullOrEmpty(field.Description) ? null : field.Description
-                        };
-
-                        var textbox = new TextBox
-                        {
-                            Text = value,
-                            Margin = new Thickness(0, 4, 0, 4),
-                            IsEnabled = field.IsEnabled,
-                            Tag = field.Key,
-                            AcceptsReturn = field.Key == "AllegroSafetyMeasures",
-                            Height = field.Key == "AllegroSafetyMeasures" ? 120 : Double.NaN,
-                            TextWrapping = TextWrapping.Wrap
-                        };
-
-                        var grid = new Grid();
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                        Grid.SetColumn(label, 0);
-                        Grid.SetColumn(textbox, 1);
-
-                        grid.Children.Add(label);
-                        grid.Children.Add(textbox);
-
-                        groupPanel.Children.Add(grid);
-                    }
-
-                    groupBox.Content = groupPanel;
-                    ConfigStackPanel.Children.Add(groupBox);
-                }
-
+                // --- Save button ---
                 var saveButton = new Button
                 {
                     Content = "Zapisz",
@@ -361,9 +307,7 @@ namespace ServiceManager
                     HorizontalAlignment = HorizontalAlignment.Right,
                     Width = 120
                 };
-
                 saveButton.Click += BtnSaveConfig_Click;
-
                 ConfigStackPanel.Children.Add(saveButton);
 
                 ConfigViewContainer.Visibility = Visibility.Visible;
@@ -372,6 +316,189 @@ namespace ServiceManager
             {
                 MessageBox.Show($"Nie udało się załadować konfiguracji: {ex.Message}");
             }
+        }
+
+        private void LoadConnectionStrings(Configuration config)
+        {
+            foreach (ConnectionStringSettings conn in config.ConnectionStrings.ConnectionStrings)
+            {
+                if (conn.Name == "LocalSqlServer") continue;
+
+                var groupBoxDatabase = new GroupBox { Header = "Baza danych", Margin = new Thickness(0, 6, 0, 6) };
+                var groupPanel = new StackPanel { Margin = new Thickness(6) };
+
+                var connParts = ConfigHelper.ParseConnectionString(conn.ConnectionString)
+                                            .Where(kv => !ConfigHelper.ExcludedConnectionStringKeys.Contains(kv.Key))
+                                            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+                foreach (var part in connParts)
+                {
+                    groupPanel.Children.Add(CreateLabelTextBoxRow(
+                        ConfigHelper.ConnectionStringKeyTranslations.TryGetValue(part.Key, out var translated) ? translated : part.Key,
+                        part.Value,
+                        $"{conn.Name}|{part.Key}"));
+                }
+
+                groupBoxDatabase.Content = groupPanel;
+                ConfigStackPanel.Children.Add(groupBoxDatabase);
+            }
+        }
+
+        private void LoadAppSettings(Configuration config, IEnumerable<IGrouping<string, ConfigField>> groupedFields)
+        {
+            foreach (var group in groupedFields)
+            {
+                var existingFields = group.Where(f => config.AppSettings.Settings.AllKeys.Contains(f.Key)).ToList();
+                if (!existingFields.Any()) continue;
+
+                var groupBox = new GroupBox { Header = group.Key, Margin = new Thickness(0, 6, 0, 6) };
+                var panel = new StackPanel { Margin = new Thickness(6) };
+
+                foreach (var field in existingFields)
+                {
+                    if (field.Key == "MarginRanges") continue;
+
+                    string value = config.AppSettings.Settings[field.Key]?.Value ?? "";
+                    panel.Children.Add(CreateLabelTextBoxRow(field.Label, value, field.Key, field.IsEnabled));
+                }
+
+                groupBox.Content = panel;
+                ConfigStackPanel.Children.Add(groupBox);
+            }
+        }
+
+        private void LoadMargins(Configuration config)
+        {
+            string defaultMarginValue = config.AppSettings.Settings["DefaultMargin"]?.Value ?? "10";
+            _defaultMargin = decimal.Parse(defaultMarginValue);
+
+            string rangesValue = config.AppSettings.Settings["MarginRanges"]?.Value ?? "";
+            _marginRanges = ConfigHelper.ParseMarginRanges(rangesValue);
+
+            var groupBoxMargins = new GroupBox { Header = "Marże", Margin = new Thickness(0, 6, 0, 6) };
+            var groupPanel = new StackPanel { Margin = new Thickness(6) };
+
+            // --- Marża podstawowa ---
+            var defaultMarginGrid = new Grid();
+            defaultMarginGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+            defaultMarginGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var defaultMarginLabel = new TextBlock { Text = "Marża podstawowa (%)", VerticalAlignment = VerticalAlignment.Center };
+            var defaultMarginTextBox = new TextBox { Text = _defaultMargin.ToString(), Name = "DefaultMarginTextBox", Margin = new Thickness(0, 4, 0, 4) };
+            Grid.SetColumn(defaultMarginLabel, 0);
+            Grid.SetColumn(defaultMarginTextBox, 1);
+            defaultMarginGrid.Children.Add(defaultMarginLabel);
+            defaultMarginGrid.Children.Add(defaultMarginTextBox);
+
+            groupPanel.Children.Add(defaultMarginGrid);
+
+            // --- Przedziały marży ---
+            var marginRangesPanel = new StackPanel { Margin = new Thickness(6) };
+
+            // Labelki kolumn
+            var headerGrid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            headerGrid.Children.Add(new TextBlock { Text = "Od", FontWeight = FontWeights.Bold, Margin = new Thickness(2) });
+            Grid.SetColumn(headerGrid.Children[headerGrid.Children.Count - 1], 0);
+            headerGrid.Children.Add(new TextBlock { Text = "Do", FontWeight = FontWeights.Bold, Margin = new Thickness(2) });
+            Grid.SetColumn(headerGrid.Children[headerGrid.Children.Count - 1], 1);
+            headerGrid.Children.Add(new TextBlock { Text = "Marża (%)", FontWeight = FontWeights.Bold, Margin = new Thickness(2) });
+            Grid.SetColumn(headerGrid.Children[headerGrid.Children.Count - 1], 2);
+
+            marginRangesPanel.Children.Add(headerGrid);
+
+            foreach (var range in _marginRanges)
+            {
+                AddMarginRangeRowToPanel(marginRangesPanel, range.Min, range.Max, range.Margin);
+            }
+
+            var addButton = new Button { Content = "Dodaj przedział", Margin = new Thickness(0, 6, 0, 6) };
+            addButton.Click += (s, e) => AddMarginRangeRowToPanel(marginRangesPanel, 0, 0, 0);
+
+            groupPanel.Children.Add(marginRangesPanel);
+            groupPanel.Children.Add(addButton);
+
+            groupBoxMargins.Content = groupPanel;
+            ConfigStackPanel.Children.Add(groupBoxMargins);
+        }
+
+        private Grid CreateLabelTextBoxRow(string labelText, string textBoxValue, string tag, bool isEnabled = true)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var label = new TextBlock { Text = labelText, Margin = new Thickness(0, 4, 0, 4), VerticalAlignment = VerticalAlignment.Center };
+            var textbox = new TextBox { Text = textBoxValue, Margin = new Thickness(0, 4, 0, 4), Tag = tag, IsEnabled = isEnabled };
+
+            Grid.SetColumn(label, 0);
+            Grid.SetColumn(textbox, 1);
+            grid.Children.Add(label);
+            grid.Children.Add(textbox);
+
+            return grid;
+        }
+
+        private void AddMarginRangeRowToPanel(StackPanel panel, decimal min, decimal max, decimal margin)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var minBox = new TextBox { Text = min.ToString(), Margin = new Thickness(2) };
+            var maxBox = new TextBox { Text = max.ToString(), Margin = new Thickness(2) };
+            var marginBox = new TextBox { Text = margin.ToString(), Margin = new Thickness(2) };
+
+            Grid.SetColumn(minBox, 0);
+            Grid.SetColumn(maxBox, 1);
+            Grid.SetColumn(marginBox, 2);
+
+            // --- Ładny przycisk X ---
+            var removeButton = new Button
+            {
+                Width = 24,
+                Height = 24,
+                Background = Brushes.Transparent,
+                BorderBrush = Brushes.Transparent,
+                Margin = new Thickness(2),
+                ToolTip = "Usuń przedział",
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(0)
+            };
+
+            var path = new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse("M 0 0 L 8 8 M 8 0 L 0 8"), // prosty krzyż
+                Stroke = Brushes.Red,
+                StrokeThickness = 2,
+                Stretch = Stretch.Uniform
+            };
+
+            removeButton.Content = path;
+
+            removeButton.Click += (s, e) =>
+            {
+                panel.Children.Remove(grid);
+                MarginTextBoxes.Remove((minBox, maxBox, marginBox));
+            };
+
+            Grid.SetColumn(removeButton, 3);
+
+            grid.Children.Add(minBox);
+            grid.Children.Add(maxBox);
+            grid.Children.Add(marginBox);
+            grid.Children.Add(removeButton);
+
+            panel.Children.Add(grid);
+            MarginTextBoxes.Add((minBox, maxBox, marginBox));
         }
 
         private void BtnReloadConfig_Click(object sender, RoutedEventArgs e)
@@ -388,39 +515,38 @@ namespace ServiceManager
                 var map = new ExeConfigurationFileMap { ExeConfigFilename = _selectedService.ExternalConfigPath };
                 var config = ConfigurationManager.OpenMappedExeConfiguration(map, ConfigurationUserLevel.None);
 
-                foreach (var grid in ConfigStackPanel.Children.OfType<GroupBox>().SelectMany(gb => ((StackPanel)gb.Content).Children.OfType<Grid>()))
-                {
-                    var tb = grid.Children.OfType<TextBox>().FirstOrDefault();
-                    if (tb != null && tb.Tag is string key)
+                // Zapis podstawowej marży
+                var defaultMarginTextBox = ConfigStackPanel.Children.OfType<Grid>()
+                    .SelectMany(g => g.Children.OfType<TextBox>())
+                    .FirstOrDefault(tb => tb.Name == "DefaultMarginTextBox");
+
+                if (defaultMarginTextBox != null)
+                    _defaultMargin = decimal.Parse(defaultMarginTextBox.Text);
+
+                if (config.AppSettings.Settings["DefaultMargin"] != null)
+                    config.AppSettings.Settings["DefaultMargin"].Value = _defaultMargin.ToString();
+                else
+                    config.AppSettings.Settings.Add("DefaultMargin", _defaultMargin.ToString());
+
+                // Zapis przedziałów
+                _marginRanges = MarginTextBoxes.Select(t =>
+                    new MarginRange
                     {
-                        string value = tb.Text;
+                        Min = decimal.Parse(t.Min.Text),
+                        Max = decimal.Parse(t.Max.Text),
+                        Margin = decimal.Parse(t.Margin.Text)
+                    }).ToList();
 
-                        if (key.Contains("|")) // connection string part
-                        {
-                            var parts = key.Split('|');
-                            var connName = parts[0];
-                            var connKey = parts[1];
+                string serialized = ConfigHelper.SerializeMarginRanges(_marginRanges);
 
-                            var connSettings = config.ConnectionStrings.ConnectionStrings[connName];
-                            if (connSettings != null)
-                            {
-                                var builder = new DbConnectionStringBuilder { ConnectionString = connSettings.ConnectionString };
-                                builder[connKey] = value;
-                                connSettings.ConnectionString = builder.ConnectionString;
-                            }
-                        }
-                        else // normal appSettings
-                        {
-                            if (config.AppSettings.Settings[key] != null)
-                                config.AppSettings.Settings[key].Value = value;
-                            else
-                                config.AppSettings.Settings.Add(key, value);
-                        }
-                    }
-                }
+                if (config.AppSettings.Settings["MarginRanges"] != null)
+                    config.AppSettings.Settings["MarginRanges"].Value = serialized;
+                else
+                    config.AppSettings.Settings.Add("MarginRanges", serialized);
 
                 config.Save(ConfigurationSaveMode.Modified);
                 ConfigurationManager.RefreshSection("appSettings");
+
                 MessageBox.Show("Konfiguracja zapisana.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -501,7 +627,7 @@ namespace ServiceManager
 
         private void IcLogLines_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            if (e.VerticalOffset <= 0)
+            if (e.VerticalOffset <= 0 && ChkShowOnlyWarningsAndErrors.IsChecked == false)
                 _ = LoadMoreAsync();
         }
 
@@ -555,6 +681,7 @@ namespace ServiceManager
                 _reachedFileStart = reachedStart;
 
                 _currentLogLines.AddRange(lines.Select(ParseLogLine));
+                ApplyFilter();
 
                 await Dispatcher.BeginInvoke(() =>
                 {
@@ -569,6 +696,22 @@ namespace ServiceManager
             {
                 MessageBox.Show($"Błąd odczytu logu {item.Name}: {ex.Message}");
             }
+        }
+
+        private void ApplyFilter()
+        {
+            _filteredLogLines.Clear();
+
+            bool filter = ChkShowOnlyWarningsAndErrors.IsChecked == true;
+
+            foreach (var line in _currentLogLines)
+            {
+                if (!filter || line.Level == LogLevel.Warning || line.Level == LogLevel.Error)
+                    _filteredLogLines.Add(line);
+            }
+
+            if (_filteredLogLines.Count > 0)
+                IcLogLines.ScrollIntoView(_filteredLogLines[^1]);
         }
 
         private async Task LoadMoreAsync()
@@ -586,6 +729,7 @@ namespace ServiceManager
                 if (older.Count > 0)
                 {
                     _currentLogLines.InsertRange(0, older.Select(ParseLogLine));
+                    ApplyFilter();
                     _loadedStartOffset = newStart;
                     _reachedFileStart = reachedStart;
 
@@ -599,6 +743,18 @@ namespace ServiceManager
             finally
             {
                 _isLoadingMore = false;
+            }
+        }
+
+        private async void ChkShowOnlyWarningsAndErrors_Changed(object sender, RoutedEventArgs e)
+        {
+            if (ChkShowOnlyWarningsAndErrors.IsChecked == true)
+            {
+                await LoadEntireFileWithFilterAsync();
+            }
+            else
+            {
+                LoadSelectedFileContent();
             }
         }
 

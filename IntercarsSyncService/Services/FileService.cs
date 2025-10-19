@@ -1,20 +1,13 @@
-﻿using CsvHelper;
-using HtmlAgilityPack;
+﻿using HtmlAgilityPack;
 using IntercarsSyncService.DTOs;
 using IntercarsSyncService.Helpers;
 using IntercarsSyncService.Settings;
-using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Repositories;
 
 namespace IntercarsSyncService.Services

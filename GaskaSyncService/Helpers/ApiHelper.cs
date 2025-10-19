@@ -1,9 +1,9 @@
-﻿using System;
+﻿using GaskaSyncService.Settings;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
-using GaskaSyncService.Settings;
 
 namespace GaskaSyncService.Helpers
 {
