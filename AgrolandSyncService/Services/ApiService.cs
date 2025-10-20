@@ -3,6 +3,7 @@ using AgrolandSyncService.Helpers;
 using AgrolandSyncService.Settings;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -20,13 +22,15 @@ namespace AgrolandSyncService.Services
     {
         private readonly AgrolandApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly int _margin;
+        private readonly decimal _defaulyMargin;
+        private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _margin = AppSettingsLoader.GetMargin();
+            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -62,6 +66,7 @@ namespace AgrolandSyncService.Services
                     {
                         try
                         {
+                            decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.PriceAfterDiscountNet, _defaulyMargin, _marginRanges);
                             var dto = new ProductDto
                             {
                                 Id = apiProduct.Id,
@@ -71,8 +76,8 @@ namespace AgrolandSyncService.Services
                                 Quantity = apiProduct.Qty,
                                 NetBuyPrice = apiProduct.PriceAfterDiscountNet,
                                 GrossBuyPrice = (apiProduct.PriceAfterDiscountNet * 1.23m),
-                                NetSellPrice = apiProduct.PriceAfterDiscountNet * ((_margin / 100m) + 1),
-                                GrossSellPrice = (apiProduct.PriceAfterDiscountNet * 1.23m) * ((_margin / 100m) + 1),
+                                NetSellPrice = apiProduct.PriceAfterDiscountNet * ((applicableMargin / 100m) + 1),
+                                GrossSellPrice = apiProduct.PriceAfterDiscountNet * 1.23m * ((applicableMargin / 100m) + 1),
                                 Vat = apiProduct.Vat,
                                 Weight = apiProduct.Weight ?? 0,
                                 Brand = apiProduct.Brand?.Name,

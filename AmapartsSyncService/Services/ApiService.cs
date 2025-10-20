@@ -13,6 +13,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -23,13 +24,15 @@ namespace AmapartsSyncService.Services
     {
         private readonly AmapartsApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly int _margin;
+        private readonly decimal _defaulyMargin;
+        private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _margin = AppSettingsLoader.GetMargin();
+            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -110,6 +113,8 @@ namespace AmapartsSyncService.Services
                     {
                         try
                         {
+                            decimal applicableMargin = MarginHelper.CalculateMargin(product.NetPurchasePrice, _defaulyMargin, _marginRanges);
+
                             // 7. Updating details
                             var dto = new ProductDto
                             {
@@ -120,8 +125,8 @@ namespace AmapartsSyncService.Services
                                 Quantity = product.StockQuantity,
                                 NetBuyPrice = product.NetPurchasePrice,
                                 GrossBuyPrice = product.NetPurchasePrice * 1.23m,
-                                NetSellPrice = product.NetPurchasePrice * ((_margin / 100m) + 1),
-                                GrossSellPrice = product.NetPurchasePrice * 1.23m * ((_margin / 100m) + 1),
+                                NetSellPrice = product.NetPurchasePrice * ((applicableMargin / 100m) + 1),
+                                GrossSellPrice = product.NetPurchasePrice * 1.23m * ((applicableMargin / 100m) + 1),
                                 Vat = 23,
                                 Weight = 0,
                                 Brand = product.Manufacturer,

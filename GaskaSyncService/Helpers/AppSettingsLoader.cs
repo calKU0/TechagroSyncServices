@@ -1,6 +1,9 @@
 ﻿using GaskaSyncService.Settings;
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace GaskaSyncService.Helpers
 {
@@ -10,43 +13,28 @@ namespace GaskaSyncService.Helpers
         {
             return new GaskaApiSettings
             {
-                BaseUrl = GetString("GaskaApiBaseUrl"),
-                Acronym = GetString("GaskaApiAcronym"),
-                Person = GetString("GaskaApiPerson"),
-                Password = GetString("GaskaApiPassword"),
-                ApiKey = GetString("GaskaApiKey"),
-                ProductsPerPage = GetInt("GaskaApiProductsPerPage", 1000),
-                ProductsInterval = GetInt("GaskaApiProductsInterval", 1),
-                ProductPerDay = GetInt("GaskaApiProductPerDay", 500),
-                ProductInterval = GetInt("GaskaApiProductInterval", 10)
+                BaseUrl = ConfigHelper.GetString("GaskaApiBaseUrl"),
+                Acronym = ConfigHelper.GetString("GaskaApiAcronym"),
+                Person = ConfigHelper.GetString("GaskaApiPerson"),
+                Password = ConfigHelper.GetString("GaskaApiPassword"),
+                ApiKey = ConfigHelper.GetString("GaskaApiKey"),
+                ProductsPerPage = ConfigHelper.GetInt("GaskaApiProductsPerPage", 1000),
+                ProductsInterval = ConfigHelper.GetInt("GaskaApiProductsInterval", 1),
+                ProductPerDay = ConfigHelper.GetInt("GaskaApiProductPerDay", 500),
+                ProductInterval = ConfigHelper.GetInt("GaskaApiProductInterval", 10)
             };
         }
 
-        public static int GetLogsExpirationDays() => GetInt("LogsExpirationDays", 14);
+        public static int GetLogsExpirationDays() => ConfigHelper.GetInt("LogsExpirationDays", 14);
 
-        public static int GetMargin() => GetInt("Margin%", 25);
+        public static decimal GetDefaultMargin() => ConfigHelper.GetDecimal("DefaultMargin", 25m);
 
-        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(GetInt("FetchIntervalMinutes", 60));
-
-        public static string GetConnenctionString() => ConfigurationManager.ConnectionStrings["DefaultConnectionString"].ToString();
-
-        private static string GetString(string key, bool required = true)
+        public static List<MarginRange> GetMarginRanges()
         {
-            var value = ConfigurationManager.AppSettings[key];
-
-            if (required && string.IsNullOrWhiteSpace(value))
-                throw new ConfigurationErrorsException($"Missing required appSetting: '{key}'");
-
-            return value;
+            string raw = ConfigurationManager.AppSettings["MarginRanges"] ?? "";
+            return MarginHelper.ParseMarginRanges(raw);
         }
 
-        private static int GetInt(string key, int defaultValue)
-        {
-            var raw = ConfigurationManager.AppSettings[key];
-            if (int.TryParse(raw, out int result))
-                return result;
-
-            return defaultValue;
-        }
+        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
     }
 }

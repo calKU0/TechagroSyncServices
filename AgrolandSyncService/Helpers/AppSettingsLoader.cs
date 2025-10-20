@@ -1,6 +1,9 @@
 ﻿using AgrolandSyncService.Settings;
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace AgrolandSyncService.Helpers
 {
@@ -10,36 +13,21 @@ namespace AgrolandSyncService.Helpers
         {
             return new AgrolandApiSettings
             {
-                BaseUrl = GetString("AgrolandApiBaseUrl"),
-                ApiKey = GetString("AgrolandApiKey"),
+                BaseUrl = ConfigHelper.GetString("AgrolandApiBaseUrl"),
+                ApiKey = ConfigHelper.GetString("AgrolandApiKey"),
             };
         }
 
-        public static int GetLogsExpirationDays() => GetInt("LogsExpirationDays", 14);
+        public static int GetLogsExpirationDays() => ConfigHelper.GetInt("LogsExpirationDays", 14);
 
-        public static int GetMargin() => GetInt("Margin%", 25);
+        public static decimal GetDefaultMargin() => ConfigHelper.GetDecimal("DefaultMargin", 25m);
 
-        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(GetInt("FetchIntervalMinutes", 60));
-
-        public static string GetConnenctionString() => ConfigurationManager.ConnectionStrings["DefaultConnectionString"].ToString();
-
-        private static string GetString(string key, bool required = true)
+        public static List<MarginRange> GetMarginRanges()
         {
-            var value = ConfigurationManager.AppSettings[key];
-
-            if (required && string.IsNullOrWhiteSpace(value))
-                throw new ConfigurationErrorsException($"Missing required appSetting: '{key}'");
-
-            return value;
+            string raw = ConfigurationManager.AppSettings["MarginRanges"] ?? "";
+            return MarginHelper.ParseMarginRanges(raw);
         }
 
-        private static int GetInt(string key, int defaultValue)
-        {
-            var raw = ConfigurationManager.AppSettings[key];
-            if (int.TryParse(raw, out int result))
-                return result;
-
-            return defaultValue;
-        }
+        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
     }
 }

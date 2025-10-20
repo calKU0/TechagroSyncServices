@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -21,13 +22,15 @@ namespace GaskaSyncService.Services
     {
         private readonly GaskaApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly int _margin;
+        private readonly decimal _defaulyMargin;
+        private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _margin = AppSettingsLoader.GetMargin();
+            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -72,6 +75,7 @@ namespace GaskaSyncService.Services
                             try
                             {
                                 string name = apiProduct.Name;
+                                decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.NetPrice, _defaulyMargin, _marginRanges);
 
                                 if (!string.IsNullOrWhiteSpace(name))
                                 {
@@ -93,8 +97,8 @@ namespace GaskaSyncService.Services
                                     Quantity = (decimal)apiProduct.InStock,
                                     NetBuyPrice = apiProduct.NetPrice,
                                     GrossBuyPrice = apiProduct.GrossPrice,
-                                    NetSellPrice = apiProduct.NetPrice * ((_margin / 100m) + 1),
-                                    GrossSellPrice = apiProduct.GrossPrice * ((_margin / 100m) + 1),
+                                    NetSellPrice = apiProduct.NetPrice * ((applicableMargin / 100m) + 1),
+                                    GrossSellPrice = apiProduct.GrossPrice * ((applicableMargin / 100m) + 1),
                                     Vat = 23,
                                     Weight = (decimal)apiProduct.GrossWeight,
                                     Brand = apiProduct.SupplierName,

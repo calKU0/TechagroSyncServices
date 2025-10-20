@@ -5,6 +5,7 @@ using System;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
 
@@ -33,7 +34,7 @@ namespace IntercarsSyncService
             _interval = AppSettingsLoader.GetFetchInterval();
 
             // Repositories
-            string connectionString = AppSettingsLoader.GetConnenctionString();
+            string connectionString = ConfigHelper.GetConnenctionString();
             _productRepository = new ProductRepository(connectionString);
 
             // Services
