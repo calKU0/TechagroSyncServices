@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntercarsSyncService", "Int
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceManager", "ServiceManager\ServiceManager.csproj", "{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgrobisSyncService", "AgrobisSyncService\AgrobisSyncService.csproj", "{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RolmarSyncService", "RolmarSyncService\RolmarSyncService.csproj", "{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +75,22 @@ Global
 		{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}.Release|x86.ActiveCfg = Release|Any CPU
 		{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}.Release|x86.Build.0 = Release|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Debug|x86.Build.0 = Debug|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Release|x86.ActiveCfg = Release|Any CPU
+		{33EA3C2D-F88A-430E-85CE-E9846BB2D5F0}.Release|x86.Build.0 = Release|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Debug|x86.Build.0 = Debug|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Release|x86.ActiveCfg = Release|Any CPU
+		{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
