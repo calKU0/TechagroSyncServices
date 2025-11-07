@@ -8,7 +8,13 @@ namespace TechagroSyncServices.Shared.Helpers
     {
         public static string TruncateHtml(string html, int maxLength)
         {
-            if (string.IsNullOrEmpty(html) || html.Length <= maxLength)
+            if (string.IsNullOrEmpty(html))
+                return html;
+
+            // Remove all line breaks and carriage returns
+            html = html.Replace("\r", "").Replace("\n", "");
+
+            if (html.Length <= maxLength)
                 return html;
 
             // Find the last safe closing tag before the limit

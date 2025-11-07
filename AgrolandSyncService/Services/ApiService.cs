@@ -11,7 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 
 namespace AmapartsSyncService.Helpers

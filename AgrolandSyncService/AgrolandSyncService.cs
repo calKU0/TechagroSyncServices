@@ -5,7 +5,7 @@ using System;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
-using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
 

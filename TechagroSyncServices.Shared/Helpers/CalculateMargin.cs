@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using TechagroSyncServices.Shared.DTOs;
 
-namespace TechagroApiSync.Shared.Helpers
+namespace TechagroSyncServices.Shared.Helpers
 {
     public static class MarginHelper
     {

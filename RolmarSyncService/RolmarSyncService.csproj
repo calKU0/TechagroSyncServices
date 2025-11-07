@@ -34,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.Management" />
@@ -86,8 +87,17 @@
     <PackageReference Include="System.Configuration.ConfigurationManager">
       <Version>9.0.10</Version>
     </PackageReference>
+    <PackageReference Include="System.Diagnostics.DiagnosticSource">
+      <Version>9.0.10</Version>
+    </PackageReference>
+    <PackageReference Include="System.Memory">
+      <Version>4.6.3</Version>
+    </PackageReference>
     <PackageReference Include="System.Text.Json">
       <Version>9.0.10</Version>
+    </PackageReference>
+    <PackageReference Include="System.Threading.Tasks.Extensions">
+      <Version>4.6.3</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

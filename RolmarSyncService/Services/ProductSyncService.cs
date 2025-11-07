@@ -3,11 +3,12 @@ using RolmarSyncService.Helpers;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using TechagroApiSync.Shared.Helpers;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -58,8 +59,8 @@ namespace RolmarSyncService.Services
                         Unit = "szt.",
                         IntegrationCompany = "Intercars"
                     };
-
-                    int result = await _productRepo.UpsertProductAsync(dto);
+                    int result = 1;
+                    //int result = await _productRepo.UpsertProductAsync(dto);
                     if (result == 1)
                     {
                         productInserted++;
@@ -88,7 +89,7 @@ namespace RolmarSyncService.Services
                     }
 
                     string truncatedDesc = DescriptionHelper.TruncateHtml(opisBuilder.ToString(), 1000);
-                    await _productRepo.UpdateProductDescriptionAsync(product.ProductIndex, truncatedDesc);
+                    //await _productRepo.UpdateProductDescriptionAsync(product.ProductIndex, truncatedDesc);
 
                     Log.Information("Updated description for product {Code}", product.ProductIndex);
                 }
@@ -108,14 +109,30 @@ namespace RolmarSyncService.Services
                             {
                                 try
                                 {
+                                    // Get the file name from the URL (remove query)
+                                    var uri = new Uri(img.Url);
+                                    string fileName = Path.GetFileName(uri.AbsolutePath); // DT10-0-75-15-3.jpg
+
+                                    // Optional: replace invalid filename chars in local file
+                                    foreach (var c in Path.GetInvalidFileNameChars())
+                                        fileName = fileName.Replace(c, '_');
+
+                                    string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images");
+                                    Directory.CreateDirectory(folderPath);
+                                    string filePath = Path.Combine(folderPath, fileName);
+
                                     var imageData = await _imageClient.GetByteArrayAsync(img.Url);
-                                    string imageId = img.Index + "_" + img.Main;
-                                    await _productRepo.UpsertProductImageAsync(product.ProductIndex, imageId, imageData);
-                                    Log.Information("Updated image for {Code}", product.ProductIndex);
+                                    File.WriteAllBytes(filePath, imageData);
+
+                                    Log.Information("Downloaded and saved image for {Code} at {Path}", product.ProductIndex, filePath);
                                 }
                                 catch (HttpRequestException httpEx)
                                 {
                                     Log.Error(httpEx, "Failed to download image for {Code} from Url: {Url}", product.ProductIndex, img.Url);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Failed to save image for {Code} from Url: {Url}", product.ProductIndex, img.Url);
                                 }
                             }
                         }

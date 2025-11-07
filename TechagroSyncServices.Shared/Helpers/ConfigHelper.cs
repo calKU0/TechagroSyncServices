@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TechagroApiSync.Shared.Helpers
+namespace TechagroSyncServices.Shared.Helpers
 {
     public static class ConfigHelper
     {
