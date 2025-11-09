@@ -31,6 +31,22 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "ApiBaseUrl", Label = "Adres API Amaparts", Group = "Amaparts API" , IsEnabled = false},
             new ConfigField { Key = "ApiKey", Label = "Klucz API", Group = "Amaparts API" , IsEnabled = false},
 
+            // Agrorami API
+            new ConfigField { Key = "AgroramiApiBaseUrl", Label = "Adres API Agrorami", Group = "Agrorami API" , IsEnabled = false},
+            new ConfigField { Key = "AgroramiLogin", Label = "Użytkownik", Group = "Agrorami API" , IsEnabled = false},
+            new ConfigField { Key = "AgroramiPassword", Label = "Hasło", Group = "Agrorami API" , IsEnabled = false},
+
+            // Hermon API
+            new ConfigField { Key = "HermonApiBaseUrl", Label = "Adres API Hermon", Group = "Hermon API" , IsEnabled = false},
+            new ConfigField { Key = "HermonApiUsername", Label = "Użytkownik", Group = "Hermon API" , IsEnabled = false},
+            new ConfigField { Key = "HermonApiPassword", Label = "Hasło", Group = "Hermon API" , IsEnabled = false},
+
+            // Hermon FTP
+            new ConfigField { Key = "HermonFtpIp", Label = "Adres FTP Hermon", Group = "Hermon FTP" , IsEnabled = false},
+            new ConfigField { Key = "HermonFtpPort", Label = "Port", Group = "Hermon FTP" , IsEnabled = false},
+            new ConfigField { Key = "HermonFtpUsername", Label = "Użytkownik", Group = "Hermon FTP" , IsEnabled = false},
+            new ConfigField { Key = "HermonFtpPassword", Label = "Hasło", Group = "Hermon FTP" , IsEnabled = false},
+
             // Other settings
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },

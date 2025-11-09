@@ -37,6 +37,7 @@ namespace ServiceManager
         private List<(TextBox Min, TextBox Max, TextBox Margin)> MarginTextBoxes = new();
         private decimal _defaultMargin = 25;
         private List<MarginRange> _marginRanges = new();
+        private bool _isAtBottom = true;
 
         public MainWindow()
         {
@@ -627,7 +628,13 @@ namespace ServiceManager
 
         private void IcLogLines_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            if (e.VerticalOffset <= 0 && ChkShowOnlyWarningsAndErrors.IsChecked == false)
+            var sv = e.OriginalSource as ScrollViewer;
+            if (sv != null)
+            {
+                _isAtBottom = sv.VerticalOffset >= sv.ScrollableHeight - 1;
+            }
+
+            if (e.VerticalOffset <= 2)
                 _ = LoadMoreAsync();
         }
 
@@ -685,10 +692,10 @@ namespace ServiceManager
 
                 await Dispatcher.BeginInvoke(() =>
                 {
-                    if (IcLogLines.Items.Count > 0)
+                    if (IcLogLines.Items.Count > 0 && _isAtBottom)
                     {
                         IcLogLines.UpdateLayout();
-                        IcLogLines.ScrollIntoView(IcLogLines.Items[^1]); // bottom
+                        IcLogLines.ScrollIntoView(IcLogLines.Items[^1]);
                     }
                 }, DispatcherPriority.Background);
             }
@@ -710,7 +717,7 @@ namespace ServiceManager
                     _filteredLogLines.Add(line);
             }
 
-            if (_filteredLogLines.Count > 0)
+            if (_filteredLogLines.Count > 0 && _isAtBottom)
                 IcLogLines.ScrollIntoView(_filteredLogLines[^1]);
         }
 
