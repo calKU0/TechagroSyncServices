@@ -44,7 +44,7 @@ namespace AgroramiSyncService.Services
                     var dto = new ProductDto
                     {
                         Id = product.Id,
-                        Code = product.Sku,
+                        Code = product.Sku + "AR",
                         Ean = product.Ean,
                         Name = product.Name,
                         Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
@@ -58,8 +58,8 @@ namespace AgroramiSyncService.Services
                         Unit = MapUnitLabel(product.UnitLabel),
                         IntegrationCompany = "Agrorami"
                     };
-                    int result = 1;
-                    //int result = await _productRepo.UpsertProductAsync(dto);
+
+                    int result = await _productRepo.UpsertProductAsync(dto);
                     if (result == 1)
                     {
                         productInserted++;
@@ -81,14 +81,23 @@ namespace AgroramiSyncService.Services
                 {
                     var opisBuilder = new StringBuilder();
 
+                    if (!string.IsNullOrWhiteSpace(product.CatalogNumber) || !string.IsNullOrWhiteSpace(product.Description.Html))
+                    {
+                        opisBuilder.Append("<h2>Opis Produktu</h2>");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(product.CatalogNumber))
+                    {
+                        opisBuilder.Append("<p><strong>Numer katalogowy: " + product.CatalogNumber + "</strong></p>");
+                    }
+
                     if (!string.IsNullOrWhiteSpace(product.Description.Html))
                     {
-                        opisBuilder.Append("<h2>Opis produktu</h2>");
                         opisBuilder.Append(product.Description.Html);
                     }
 
                     string truncatedDesc = DescriptionHelper.TruncateHtml(opisBuilder.ToString(), 1000);
-                    //await _productRepo.UpdateProductDescriptionAsync(product.ProductIndex, truncatedDesc);
+                    await _productRepo.UpdateProductDescriptionAsync(product.Sku, truncatedDesc);
 
                     Log.Information("Updated description for product {Code}", product.Sku);
                 }
@@ -110,12 +119,12 @@ namespace AgroramiSyncService.Services
                                 {
                                     var uri = new Uri(img.Url);
                                     var imageData = await imageClient.GetByteArrayAsync(img.Url);
-                                    //await _productRepo.UpsertProductImageAsync(product.Sku, img.Label, imageData);
+                                    await _productRepo.UpsertProductImageAsync(product.Sku, product.Sku + "_" + img.Position, imageData);
                                     Log.Information("Updated image for {Code} from Url: {Url}", product.Sku, img.Url);
                                 }
                                 catch (HttpRequestException httpEx)
                                 {
-                                    Log.Error(httpEx, "Failed to download image for {Code} from Url: {Url}", product.Sku + "_" + img.Position, img.Url);
+                                    Log.Error(httpEx, "Failed to download image for {Code} from Url: {Url}", product.Sku, img.Url);
                                 }
                                 catch (Exception ex)
                                 {
@@ -157,12 +166,12 @@ namespace AgroramiSyncService.Services
                 case "litr":
                 case "litre":
                 case "l":
-                    return "l";
+                    return "litr";
 
                 case "meter":
                 case "mb":
                 case "m":
-                    return "m";
+                    return "mb";
 
                 case "pack":
                 case "package":
@@ -171,7 +180,7 @@ namespace AgroramiSyncService.Services
                     return "opak.";
 
                 case "komplet":
-                    return "kpl";
+                    return "kpl.";
 
                 default:
                     return "szt.";

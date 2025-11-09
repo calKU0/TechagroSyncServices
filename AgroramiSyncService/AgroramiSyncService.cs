@@ -29,7 +29,6 @@ namespace AgroramiSyncService
 
         private Timer _timer;
         private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
-        private DateTime _lastRunTime;
 
         public AgroramiSyncService()
         {
@@ -71,8 +70,6 @@ namespace AgroramiSyncService
         {
             try
             {
-                _lastRunTime = DateTime.Now;
-
                 // 1. Getting default info about products
                 if (_lastProductDetailsSyncDate.Date < DateTime.Today)
                 {

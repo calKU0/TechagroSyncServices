@@ -22,6 +22,9 @@ namespace AgroramiSyncService.DTOs
         [JsonPropertyName("name")]
         public string Name { get; set; }
 
+        [JsonPropertyName("catalog_number")]
+        public string CatalogNumber { get; set; }
+
         [JsonPropertyName("description")]
         public HtmlContent Description { get; set; }
 

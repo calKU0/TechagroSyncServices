@@ -38,7 +38,7 @@ namespace AgroramiSyncService.Services
                 var allProducts = new List<ProductsResponse>();
                 int currentPage = 1;
 
-                while (currentPage == 1)
+                while (true)
                 {
                     var pageProducts = await GetProductsAsync(token, currentPage);
 
@@ -99,6 +99,7 @@ namespace AgroramiSyncService.Services
                             id
                             sku
                             name
+                            catalog_number
                             description {{ html }}
                             short_description {{ html }}
                             manufacturer
