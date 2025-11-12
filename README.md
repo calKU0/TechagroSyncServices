@@ -39,6 +39,21 @@ This makes monitoring and managing all services simple and intuitive.
   - Reads data from **Intercars CSV files** downloaded from their website (CSV format)
   - Cleans and inserts data into the database
 
+- **AgroramiSyncService**
+
+  - Fetches data from the **Agrorami GraphQL API** (JSON format)
+  - Transforms and stores results in the database
+
+- **HermonSyncService**
+
+  - Reads data from **Hermon FTP** (CSV format) and **Hermon API** (JSON format)
+  - Cleans and inserts data into the database
+
+- **RolmarSyncService**
+
+  - Reads data from **Rolmar API** (JSON format)
+  - Transforms and stores results in the database
+
 ## Features
 
 - Automated supplier data synchronization
