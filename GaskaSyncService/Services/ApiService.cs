@@ -11,7 +11,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -22,14 +21,14 @@ namespace GaskaSyncService.Services
     {
         private readonly GaskaApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly decimal _defaulyMargin;
+        private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
@@ -75,7 +74,7 @@ namespace GaskaSyncService.Services
                             try
                             {
                                 string name = apiProduct.Name;
-                                decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.NetPrice, _defaulyMargin, _marginRanges);
+                                decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.NetPrice, _defaultMargin, _marginRanges);
 
                                 if (!string.IsNullOrWhiteSpace(name))
                                 {

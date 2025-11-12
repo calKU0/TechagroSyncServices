@@ -11,7 +11,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -22,14 +21,14 @@ namespace AgrolandSyncService.Services
     {
         private readonly AgrolandApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly decimal _defaulyMargin;
+        private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
@@ -66,7 +65,7 @@ namespace AgrolandSyncService.Services
                     {
                         try
                         {
-                            decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.PriceAfterDiscountNet, _defaulyMargin, _marginRanges);
+                            decimal applicableMargin = MarginHelper.CalculateMargin(apiProduct.PriceAfterDiscountNet, _defaultMargin, _marginRanges);
                             var dto = new ProductDto
                             {
                                 Id = apiProduct.Id,

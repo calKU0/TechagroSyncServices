@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -17,14 +16,14 @@ namespace IntercarsSyncService.Services
     public class ProductSyncService
     {
         private readonly IProductRepository _productRepo;
-        private readonly decimal _defaulyMargin;
+        private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
         private readonly HttpClient _imageClient = HttpClientHelper.CreateImageClient();
 
         public ProductSyncService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
-            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
@@ -39,7 +38,7 @@ namespace IntercarsSyncService.Services
             {
                 try
                 {
-                    decimal applicableMargin = MarginHelper.CalculateMargin(product.WholesalePrice, _defaulyMargin, _marginRanges);
+                    decimal applicableMargin = MarginHelper.CalculateMargin(product.WholesalePrice, _defaultMargin, _marginRanges);
 
                     // 1. Upsert Product
                     var dto = new ProductDto

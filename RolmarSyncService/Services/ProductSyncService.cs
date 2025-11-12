@@ -3,12 +3,10 @@ using RolmarSyncService.Helpers;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -57,10 +55,10 @@ namespace RolmarSyncService.Services
                         Weight = product.Weight,
                         Brand = product.Brand,
                         Unit = "szt.",
-                        IntegrationCompany = "Intercars"
+                        IntegrationCompany = "ROLMAR"
                     };
-                    int result = 1;
-                    //int result = await _productRepo.UpsertProductAsync(dto);
+
+                    int result = await _productRepo.UpsertProductAsync(dto);
                     if (result == 1)
                     {
                         productInserted++;
@@ -89,7 +87,7 @@ namespace RolmarSyncService.Services
                     }
 
                     string truncatedDesc = DescriptionHelper.TruncateHtml(opisBuilder.ToString(), 1000);
-                    //await _productRepo.UpdateProductDescriptionAsync(product.ProductIndex, truncatedDesc);
+                    await _productRepo.UpdateProductDescriptionAsync(product.ProductIndex, truncatedDesc);
 
                     Log.Information("Updated description for product {Code}", product.ProductIndex);
                 }
@@ -103,36 +101,34 @@ namespace RolmarSyncService.Services
                 {
                     if (product.Images != null && product.Images.Any())
                     {
-                        using (HttpClient _imageClient = new HttpClient())
+                        using (HttpClient imageClient = new HttpClient())
                         {
+                            int imageIndex = 1;
+
                             foreach (var img in product.Images)
                             {
                                 try
                                 {
-                                    // Get the file name from the URL (remove query)
-                                    var uri = new Uri(img.Url);
-                                    string fileName = Path.GetFileName(uri.AbsolutePath); // DT10-0-75-15-3.jpg
+                                    if (string.IsNullOrEmpty(img.Url))
+                                        continue;
 
-                                    // Optional: replace invalid filename chars in local file
-                                    foreach (var c in Path.GetInvalidFileNameChars())
-                                        fileName = fileName.Replace(c, '_');
+                                    byte[] imageData = await imageClient.GetByteArrayAsync(img.Url);
+                                    string imageName = $"{product.ProductIndex}_{imageIndex}";
 
-                                    string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images");
-                                    Directory.CreateDirectory(folderPath);
-                                    string filePath = Path.Combine(folderPath, fileName);
+                                    // Save image (upload to DB, storage, etc.)
+                                    await _productRepo.UpsertProductImageAsync(product.ProductIndex, imageName, imageData, true);
 
-                                    var imageData = await _imageClient.GetByteArrayAsync(img.Url);
-                                    File.WriteAllBytes(filePath, imageData);
+                                    Log.Information("Updated product image for {Index} from URL: {Url} ", product.ProductIndex, img.Url);
 
-                                    Log.Information("Downloaded and saved image for {Code} at {Path}", product.ProductIndex, filePath);
+                                    imageIndex++;
                                 }
                                 catch (HttpRequestException httpEx)
                                 {
-                                    Log.Error(httpEx, "Failed to download image for {Code} from Url: {Url}", product.ProductIndex, img.Url);
+                                    Log.Error(httpEx, "Failed to download image for {Index} from URL: {Url}", product.ProductIndex, img.Url);
                                 }
                                 catch (Exception ex)
                                 {
-                                    Log.Error(ex, "Failed to save image for {Code} from Url: {Url}", product.ProductIndex, img.Url);
+                                    Log.Error(ex, "Failed to save image for {Index} from URL: {Url}", product.ProductIndex, img.Url);
                                 }
                             }
                         }

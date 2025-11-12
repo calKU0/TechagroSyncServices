@@ -23,6 +23,7 @@ namespace TechagroSyncServices.Shared.Repositories
                 await connection.OpenAsync();
                 using (var cmd = new SqlCommand("dbo.UpsertProduct", connection))
                 {
+                    string vatString = ((int)Math.Round(productDto.Vat)).ToString();
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.AddWithValue("@NAZWA", productDto.Name ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@STAN", productDto.Quantity);
@@ -32,8 +33,8 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.AddWithValue("@CENA_ZAKUPU_NETTO", productDto.NetBuyPrice);
                     cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO", productDto.GrossSellPrice);
                     cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_NETTO", productDto.NetSellPrice);
-                    cmd.Parameters.AddWithValue("@VAT_ZAKUPU", productDto.Vat.ToString() ?? "23");
-                    cmd.Parameters.AddWithValue("@VAT_SPRZEDAZY", productDto.Vat.ToString() ?? "23");
+                    cmd.Parameters.AddWithValue("@VAT_ZAKUPU", vatString);
+                    cmd.Parameters.AddWithValue("@VAT_SPRZEDAZY", vatString);
                     cmd.Parameters.AddWithValue("@KOD_KRESKOWY", productDto.Ean ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@WAGA", productDto.Weight);
                     cmd.Parameters.AddWithValue("@PRODUCENT", productDto.Brand ?? (object)DBNull.Value);
@@ -65,7 +66,7 @@ namespace TechagroSyncServices.Shared.Repositories
             }
         }
 
-        public async Task UpsertProductImageAsync(string code, string fileName, byte[] imageData)
+        public async Task UpsertProductImageAsync(string code, string fileName, byte[] imageData, bool skipWhenExistsImages = false)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
@@ -76,6 +77,7 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.Add("@INDEKS", SqlDbType.VarChar, 20).Value = code ?? (object)DBNull.Value;
                     cmd.Parameters.Add("@NAZWA_PLIKU", SqlDbType.VarChar, 100).Value = fileName ?? "image";
                     cmd.Parameters.Add("@DANE", SqlDbType.VarBinary, -1).Value = imageData;
+                    cmd.Parameters.Add("@SKIP_WHEN_EXISTS_IMAGES", SqlDbType.Bit).Value = skipWhenExistsImages ? 1 : 0;
 
                     await cmd.ExecuteNonQueryAsync();
                 }

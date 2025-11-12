@@ -11,7 +11,7 @@
         public decimal GrossBuyPrice { get; set; }
         public decimal NetSellPrice { get; set; }
         public decimal GrossSellPrice { get; set; }
-        public int Vat { get; set; }
+        public decimal Vat { get; set; }
         public decimal Quantity { get; set; }
         public string Unit { get; set; }
         public decimal Weight { get; set; }

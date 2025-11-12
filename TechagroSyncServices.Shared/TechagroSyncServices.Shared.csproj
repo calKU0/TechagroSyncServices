@@ -92,6 +92,12 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="SQL\GetProductsWithoutDescription.sql" />
+    <Content Include="SQL\UpdateProductDescription.sql" />
+    <Content Include="SQL\UpsertProduct.sql" />
+    <Content Include="SQL\UpsertProductImage.sql" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Serilog.4.3.0\build\Serilog.targets" Condition="Exists('..\packages\Serilog.4.3.0\build\Serilog.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

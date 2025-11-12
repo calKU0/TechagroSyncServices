@@ -21,8 +21,6 @@ namespace AmapartsSyncService
         private readonly ApiService _apiService;
 
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
-        private DateTime _lastRunTime;
 
         public AmapartsSyncService()
         {
@@ -64,14 +62,9 @@ namespace AmapartsSyncService
         {
             try
             {
-                _lastRunTime = DateTime.Now;
-
                 // 1. Getting default info about products
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
-                {
-                    await _apiService.SyncProducts();
-                    Log.Information("Product sync completed.");
-                }
+                await _apiService.SyncProducts();
+                Log.Information("Product sync completed.");
             }
             catch (Exception ex)
             {

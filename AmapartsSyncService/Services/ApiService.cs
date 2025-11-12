@@ -13,7 +13,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -24,14 +23,14 @@ namespace AmapartsSyncService.Services
     {
         private readonly AmapartsApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
-        private readonly decimal _defaulyMargin;
+        private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
         public ApiService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
@@ -113,7 +112,7 @@ namespace AmapartsSyncService.Services
                     {
                         try
                         {
-                            decimal applicableMargin = MarginHelper.CalculateMargin(product.NetPurchasePrice, _defaulyMargin, _marginRanges);
+                            decimal applicableMargin = MarginHelper.CalculateMargin(product.NetPurchasePrice, _defaultMargin, _marginRanges);
 
                             // 7. Updating details
                             var dto = new ProductDto

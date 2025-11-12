@@ -68,10 +68,7 @@ namespace IntercarsSyncService
                 _lastRunTime = DateTime.Now;
 
                 // 1. Getting default info about products
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
-                {
-                    await _apiService.SyncProducts();
-                }
+                await _apiService.SyncProducts();
             }
             catch (Exception ex)
             {

@@ -22,8 +22,6 @@ namespace RolmarSyncService
         private readonly ApiService _apiService;
 
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
-        private DateTime _lastRunTime;
 
         public RolmarSyncService()
         {
@@ -65,13 +63,8 @@ namespace RolmarSyncService
         {
             try
             {
-                _lastRunTime = DateTime.Now;
-
                 // 1. Getting default info about products
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
-                {
-                    await _apiService.SyncProducts();
-                }
+                await _apiService.SyncProducts();
             }
             catch (Exception ex)
             {

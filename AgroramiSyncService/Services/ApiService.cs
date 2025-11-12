@@ -4,13 +4,8 @@ using AgroramiSyncService.Settings;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Repositories;
 
 namespace AgroramiSyncService.Services
@@ -37,21 +32,34 @@ namespace AgroramiSyncService.Services
                 var token = await GetCustomerTokenAsync();
                 var allProducts = new List<ProductsResponse>();
                 int currentPage = 1;
+                int maxRetries = 3;
+                int currentTry = 0;
 
-                while (true)
+                while (true && currentTry <= maxRetries)
                 {
-                    var pageProducts = await GetProductsAsync(token, currentPage);
-
-                    if (pageProducts == null || pageProducts.Count == 0)
+                    try
                     {
-                        Log.Information("No more products found (page {Page}).", currentPage);
-                        break;
+                        var pageProducts = await GetProductsAsync(token, currentPage);
+
+                        if (pageProducts == null || pageProducts.Count == 0)
+                        {
+                            Log.Information("No more products found (page {Page}).", currentPage);
+                            break;
+                        }
+
+                        Log.Information("Fetched {Count} products from page {Page}.", pageProducts.Count, currentPage);
+                        allProducts.AddRange(pageProducts);
+                        currentTry = 0;
                     }
-
-                    Log.Information("Fetched {Count} products from page {Page}.", pageProducts.Count, currentPage);
-                    allProducts.AddRange(pageProducts);
-
-                    currentPage++;
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error fetching products on page {Page}", currentPage);
+                        currentTry++;
+                    }
+                    finally
+                    {
+                        currentPage++;
+                    }
                 }
 
                 if (allProducts.Count == 0)

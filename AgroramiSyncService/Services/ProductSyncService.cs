@@ -3,13 +3,12 @@ using AgroramiSyncService.Helpers;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
 
 namespace AgroramiSyncService.Services
@@ -17,13 +16,13 @@ namespace AgroramiSyncService.Services
     public class ProductSyncService
     {
         private readonly IProductRepository _productRepo;
-        private readonly decimal _defaulyMargin;
+        private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
         public ProductSyncService(IProductRepository productRepo)
         {
             _productRepo = productRepo;
-            _defaulyMargin = AppSettingsLoader.GetDefaultMargin();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
@@ -38,13 +37,15 @@ namespace AgroramiSyncService.Services
             {
                 try
                 {
-                    decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaulyMargin, _marginRanges);
+                    decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
+                    product.Sku = product.Sku + "AR";
+                    product.Name = product.Name + " " + product.CatalogNumber;
 
                     // 1. Upsert Product
                     var dto = new ProductDto
                     {
                         Id = product.Id,
-                        Code = product.Sku + "AR",
+                        Code = product.Sku,
                         Ean = product.Ean,
                         Name = product.Name,
                         Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
@@ -56,7 +57,7 @@ namespace AgroramiSyncService.Services
                         Weight = product.Weight ?? 0,
                         Brand = product.ManufacturerLabel,
                         Unit = MapUnitLabel(product.UnitLabel),
-                        IntegrationCompany = "Agrorami"
+                        IntegrationCompany = "AGRORAMI"
                     };
 
                     int result = await _productRepo.UpsertProductAsync(dto);

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.ServiceProcess;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ServiceProcess;
 
 namespace RolmarSyncService
 {
@@ -12,7 +7,7 @@ namespace RolmarSyncService
         /// <summary>
         /// Główny punkt wejścia dla aplikacji.
         /// </summary>
-        static void Main()
+        private static void Main()
         {
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]

@@ -2,13 +2,7 @@
 using AgroramiSyncService.Services;
 using Serilog;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Linq;
 using System.ServiceProcess;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TechagroSyncServices.Shared.Helpers;
@@ -28,7 +22,6 @@ namespace AgroramiSyncService
         private readonly ApiService _apiService;
 
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
 
         public AgroramiSyncService()
         {
@@ -71,10 +64,7 @@ namespace AgroramiSyncService
             try
             {
                 // 1. Getting default info about products
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
-                {
-                    await _apiService.SyncProducts();
-                }
+                await _apiService.SyncProducts();
             }
             catch (Exception ex)
             {

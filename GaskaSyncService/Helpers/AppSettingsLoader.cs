@@ -2,8 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace GaskaSyncService.Helpers
 {

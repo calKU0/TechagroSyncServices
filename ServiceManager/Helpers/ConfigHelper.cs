@@ -36,6 +36,10 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "AgroramiLogin", Label = "Użytkownik", Group = "Agrorami API" , IsEnabled = false},
             new ConfigField { Key = "AgroramiPassword", Label = "Hasło", Group = "Agrorami API" , IsEnabled = false},
 
+            // Rolmar API
+            new ConfigField { Key = "RolmarApiBaseUrl", Label = "Adres API Rolmar", Group = "Rolmar API" , IsEnabled = false},
+            new ConfigField { Key = "RolmarApiKey", Label = "Klucz API", Group = "Rolmar API" , IsEnabled = false},
+
             // Hermon API
             new ConfigField { Key = "HermonApiBaseUrl", Label = "Adres API Hermon", Group = "Hermon API" , IsEnabled = false},
             new ConfigField { Key = "HermonApiUsername", Label = "Użytkownik", Group = "Hermon API" , IsEnabled = false},
