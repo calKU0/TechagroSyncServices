@@ -5,6 +5,7 @@ using HermonSyncService.Settings;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -143,32 +144,38 @@ namespace HermonSyncService.Services
             EnsureConnected();
 
             var fileNames = ListFiles(folderPath);
-
-            var imageFiles = fileNames
-                .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
-                         || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
-                         || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            var imageFiles = fileNames.Where(f =>
+                f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+            ).ToList();
 
             Log.Information("Downloading {Count} images from {Folder}", imageFiles.Count, folderPath);
 
             var images = new List<FtpImage>();
             int count = 0;
 
+            string localDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ImagesCache");
+            Directory.CreateDirectory(localDir);
+
             foreach (var file in imageFiles)
             {
                 try
                 {
+                    string localPath = Path.Combine(localDir, file);
+
                     using (var ftpStream = _client.OpenRead(folderPath + "/" + file))
-                    using (var ms = new MemoryStream())
+                    using (var fs = File.Create(localPath))
                     {
-                        ftpStream.CopyTo(ms);
-                        images.Add(new FtpImage
-                        {
-                            FileName = file,
-                            Data = ms.ToArray()
-                        });
+                        ftpStream.CopyTo(fs);
                     }
+
+                    images.Add(new FtpImage
+                    {
+                        FileName = file,
+                        FilePath = localPath,
+                        Data = null
+                    });
 
                     count++;
                     if (count % 50 == 0)
@@ -180,7 +187,6 @@ namespace HermonSyncService.Services
                 }
             }
 
-            Log.Information("Successfully downloaded {Count} images", images.Count);
             return images;
         }
 

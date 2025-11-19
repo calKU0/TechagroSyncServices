@@ -209,11 +209,14 @@ namespace RolmarSyncService.Services
             if (string.IsNullOrWhiteSpace(value))
                 return 0m;
 
-            // Try normal parse
+            // Normalize decimal separator
+            value = value.Replace(',', '.');
+
             if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
                 return result;
 
             Log.Warning("Invalid decimal conversion for field '{Field}' in product '{ProductIndex}'. Value: '{Value}'", fieldName, productIndex, value);
+
             return 0m;
         }
     }

@@ -16,6 +16,6 @@ namespace HermonSyncService.DTOs
         public decimal PriceGross { get; set; }
         public decimal Tax { get; set; }
         public decimal Quantity { get; set; }
-        public List<(string, byte[])> Images { get; set; }
+        public List<FtpImage> Images { get; set; }
     }
 }

@@ -155,8 +155,7 @@ namespace HermonSyncService.Services
                     }
 
                     var images = ftpImages
-                        .Where(img => img.FileName.StartsWith($"{ftpProduct.Code}_", StringComparison.OrdinalIgnoreCase))
-                        .Select(img => (img.FileName, img.Data))
+                        .Where(img => img.FileName.StartsWith($"{ftpProduct.Code}_"))
                         .ToList();
 
                     return new FullProductDto

@@ -3,6 +3,7 @@ using HermonSyncService.Helpers;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -104,7 +105,9 @@ namespace HermonSyncService.Services
                         {
                             try
                             {
-                                await _productRepo.UpsertProductImageAsync(product.Code, image.Item1, image.Item2, true);
+                                byte[] imageBytes = File.ReadAllBytes(image.FilePath);
+
+                                await _productRepo.UpsertProductImageAsync(product.Code, image.FileName, imageBytes, true);
                                 Log.Information("Updated image for {Code}", product.Code);
                             }
                             catch (Exception ex)
