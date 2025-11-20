@@ -137,6 +137,8 @@ namespace HermonSyncService.Services
 
         public List<FullProductDto> BuildFullProducts(IEnumerable<FtpProducts> ftpProducts, IEnumerable<ProductsDetailResponse> apiDetails, IEnumerable<FtpImage> ftpImages)
         {
+            Log.Information("Building full product data...");
+
             return ftpProducts
                 .Select(ftpProduct =>
                 {

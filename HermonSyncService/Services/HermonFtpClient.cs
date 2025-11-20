@@ -150,19 +150,36 @@ namespace HermonSyncService.Services
                 f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
             ).ToList();
 
-            Log.Information("Downloading {Count} images from {Folder}", imageFiles.Count, folderPath);
+            Log.Information("Found {Count} image files in {Folder}", imageFiles.Count, folderPath);
 
             var images = new List<FtpImage>();
-            int count = 0;
+
+            int downloadedCount = 0;
+            int skippedCount = 0;
 
             string localDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ImagesCache");
             Directory.CreateDirectory(localDir);
 
             foreach (var file in imageFiles)
             {
+                string localPath = Path.Combine(localDir, file);
+
                 try
                 {
-                    string localPath = Path.Combine(localDir, file);
+                    // ===== Skip if file already exists =====
+                    if (File.Exists(localPath))
+                    {
+                        skippedCount++;
+
+                        images.Add(new FtpImage
+                        {
+                            FileName = file,
+                            FilePath = localPath,
+                            Data = null
+                        });
+
+                        continue;
+                    }
 
                     using (var ftpStream = _client.OpenRead(folderPath + "/" + file))
                     using (var fs = File.Create(localPath))
@@ -177,15 +194,19 @@ namespace HermonSyncService.Services
                         Data = null
                     });
 
-                    count++;
-                    if (count % 50 == 0)
-                        Log.Information("Downloaded {Count}/{Total} images", count, imageFiles.Count);
+                    downloadedCount++;
+
+                    if (downloadedCount % 50 == 0)
+                        Log.Information("Downloaded {Count}/{Total} images", downloadedCount, imageFiles.Count);
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Failed to download image {File}", file);
+                    // Log.Error(ex, "Failed to download image {File}", file);
                 }
             }
+
+            // ===== Final summary =====
+            Log.Information("Download images finished. Downloaded: {Downloaded}, Skipped: {Skipped}, Total: {Total}", downloadedCount, skippedCount, imageFiles.Count);
 
             return images;
         }

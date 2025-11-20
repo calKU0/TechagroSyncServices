@@ -38,6 +38,7 @@ namespace HermonSyncService.Services
                 try
                 {
                     decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceNet, _defaultMargin, _marginRanges);
+                    product.Code = product.Code + "HR";
 
                     // 1. Upsert Product
                     var dto = new ProductDto
