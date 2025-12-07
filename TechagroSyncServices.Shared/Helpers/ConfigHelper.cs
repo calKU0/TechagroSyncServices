@@ -1,4 +1,6 @@
-﻿using System.Configuration;
+﻿using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
 
 namespace TechagroSyncServices.Shared.Helpers
 {
@@ -32,6 +34,22 @@ namespace TechagroSyncServices.Shared.Helpers
                 return result;
 
             return defaultValue;
+        }
+
+        public static List<string> GetStringList(string key, bool required = true)
+        {
+            var raw = ConfigurationManager.AppSettings[key];
+
+            if (required && string.IsNullOrWhiteSpace(raw))
+                throw new ConfigurationErrorsException($"Missing required list appSetting: '{key}'");
+
+            if (string.IsNullOrWhiteSpace(raw))
+                return new List<string>();
+
+            return raw.Split(',')
+                      .Select(x => x.Trim())
+                      .Where(x => !string.IsNullOrWhiteSpace(x))
+                      .ToList();
         }
     }
 }

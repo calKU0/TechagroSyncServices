@@ -12,6 +12,8 @@ namespace TechagroSyncServices.Shared.Repositories
 
         Task UpsertProductImageAsync(string code, string fileName, byte[] imageData, bool skipWhenExistsImages = false);
 
+        Task<int> DeleteNotSyncedProducts(string intergrationCompany, List<string> codes);
+
         Task<List<int>> GetProductsWithoutDescription(int topCount);
     }
 }

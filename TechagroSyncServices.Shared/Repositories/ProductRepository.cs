@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using TechagroSyncServices.Shared.DTOs;
+using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace TechagroSyncServices.Shared.Repositories
 {
@@ -104,6 +105,35 @@ namespace TechagroSyncServices.Shared.Repositories
                 }
             }
             return products;
+        }
+
+        public async Task<int> DeleteNotSyncedProducts(string integrationCompany, List<string> codes)
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var cmd = new SqlCommand("dbo.DeleteNotSyncedProducts", connection))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    cmd.Parameters.Add("@IntegrationCompany", SqlDbType.VarChar)
+                        .Value = integrationCompany;
+
+                    var dt = new DataTable();
+                    dt.Columns.Add("Code", typeof(string));
+
+                    foreach (var code in codes)
+                        dt.Rows.Add(code);
+
+                    var tvpParam = cmd.Parameters.AddWithValue("@AllowedCodes", dt);
+                    tvpParam.SqlDbType = SqlDbType.Structured;
+                    tvpParam.TypeName = "dbo.StringList";
+
+                    var result = await cmd.ExecuteScalarAsync();
+                    return Convert.ToInt32(result);
+                }
+            }
         }
     }
 }
