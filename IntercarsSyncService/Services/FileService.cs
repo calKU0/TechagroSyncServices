@@ -5,21 +5,26 @@ using IntercarsSyncService.Settings;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace IntercarsSyncService.Services
 {
     public class FileService
     {
         private readonly IntercarsApiSettings _apiSettings;
+        private readonly IEmailService _emailService;
         private readonly IProductRepository _productRepo;
 
-        public FileService(IProductRepository productRepo)
+        public FileService(IProductRepository productRepo, IEmailService emailService)
         {
             _productRepo = productRepo;
+            _emailService = emailService;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
         }
 
@@ -29,6 +34,7 @@ namespace IntercarsSyncService.Services
             {
                 Log.Information("Starting products synchronization...");
 
+                // Step 1: Download latest data files
                 var products = await GetLatestProductInformationAsync();
                 if (!products.Any())
                 {
@@ -36,6 +42,7 @@ namespace IntercarsSyncService.Services
                     return;
                 }
 
+                // Step 2: Download stock and price data
                 var stockData = await GetLatestStockPriceAsync();
                 if (!stockData.Any())
                 {
@@ -43,6 +50,7 @@ namespace IntercarsSyncService.Services
                     return;
                 }
 
+                // Step 3: Download product images
                 var images = await GetLatestProductImagesAsync();
                 if (!images.Any())
                 {
@@ -50,13 +58,80 @@ namespace IntercarsSyncService.Services
                     return;
                 }
 
+                // Step 4: Aggregate and merge data
                 var aggregatedStock = AggregateStockData(stockData);
                 var fullProducts = BuildFullProductDtos(products, aggregatedStock, images);
-
                 Log.Information("Merged {Count} products", fullProducts.Count);
 
-                var productSync = new ProductSyncService(_productRepo);
-                await productSync.SyncToDatabaseAsync(fullProducts);
+                // Step 5.1: Detect newly added products
+                var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                var previousProducts = await FileUtils.ReadFromJsonAsync<FullProductDto>(filePath);
+                var newProducts = ProductComparer.FindNewProducts(previousProducts, fullProducts);
+
+                if (newProducts.Count > 0 && previousProducts.Count > 0)
+                {
+                    try
+                    {
+                        Log.Information("Detected {Count} NEW products", newProducts.Count);
+
+                        string to = AppSettingsLoader.GetEmailsToNotify();
+
+                        const int batchSize = 100;
+                        int totalBatches = (int)Math.Ceiling(newProducts.Count / (double)batchSize);
+
+                        for (int i = 0; i < totalBatches; i++)
+                        {
+                            var batch = newProducts.Skip(i * batchSize).Take(batchSize).ToList();
+                            string subject = $"Nowe produkty dodane do oferty Inter Cars ({newProducts.Count})";
+                            string htmlBody = HtmlHelper.BuildNewProductsEmailHtml(batch);
+
+                            await _emailService.SendEmailAsync(to, subject, htmlBody);
+
+                            Log.Information("Sent email for batch {Batch}/{TotalBatches} ({Count} products)", i + 1, totalBatches, batch.Count);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to send new products email notification");
+                    }
+                }
+                else
+                {
+                    Log.Information("No new products detected.");
+                }
+
+                // Step 6: Export to JSON
+                await FileUtils.WriteToJsonAsync(fullProducts, filePath);
+                Log.Information("JSON file created at {Path}", filePath);
+
+                // Step 7: Filter by import list
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+                var allowedTowKods = FileUtils.ReadImportList(importFilePath);
+
+                if (!allowedTowKods.Any())
+                {
+                    Log.Warning("Import file is empty or missing. Aborting import");
+                    return;
+                }
+                else
+                {
+                    var allowedSet = new HashSet<string>(allowedTowKods, StringComparer.OrdinalIgnoreCase);
+
+                    fullProducts = fullProducts
+                        .Where(p => allowedSet.Contains(p.TowKod))
+                        .ToList();
+
+                    Log.Information("Filtered product list to {Count} items based on import file", fullProducts.Count);
+                }
+
+                // Step 8: Sync to database
+                //var productSync = new ProductSyncService(_productRepo);
+
+                // Step 8.1: Delete products not in the current import list
+                //await productSync.DeleteNotSyncedProducts(allowedTowKods);
+
+                // Step 8.2: Sync current products
+                //await productSync.SyncToDatabaseAsync(fullProducts);
 
                 Log.Information("Product synchronization completed successfully.");
             }

@@ -125,8 +125,20 @@ namespace IntercarsSyncService.Services
                 }
             }
 
-            Log.Information("Products imported: {Total}/{All}, Inserted: {Inserted}, Updated: {Updated}",
-                productInserted + productUpdated, products.Count, productInserted, productUpdated);
+            Log.Information("Products imported: {Total}/{All}, Inserted: {Inserted}, Updated: {Updated}", productInserted + productUpdated, products.Count, productInserted, productUpdated);
+        }
+
+        public async Task DeleteNotSyncedProducts(List<string> productCodes)
+        {
+            try
+            {
+                int result = await _productRepo.DeleteNotSyncedProducts("INTERCARS", productCodes);
+                Log.Information("Deleted {Count} not synced products from database.", result);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to delete not synced products from database.");
+            }
         }
     }
 }

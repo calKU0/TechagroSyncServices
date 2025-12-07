@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace IntercarsSyncService
 {
@@ -21,9 +22,9 @@ namespace IntercarsSyncService
         // Services
         private readonly FileService _apiService;
 
+        private readonly IEmailService _emailService;
+
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
-        private DateTime _lastRunTime;
 
         public IntercarsSyncService()
         {
@@ -38,7 +39,9 @@ namespace IntercarsSyncService
             _productRepository = new ProductRepository(connectionString);
 
             // Services
-            _apiService = new FileService(_productRepository);
+            var smtpSettings = AppSettingsLoader.LoadSmtpSettings();
+            _emailService = new EmailService(smtpSettings);
+            _apiService = new FileService(_productRepository, _emailService);
 
             InitializeComponent();
         }
@@ -65,9 +68,6 @@ namespace IntercarsSyncService
         {
             try
             {
-                _lastRunTime = DateTime.Now;
-
-                // 1. Getting default info about products
                 await _apiService.SyncProducts();
             }
             catch (Exception ex)
