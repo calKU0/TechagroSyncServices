@@ -52,6 +52,7 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "HermonFtpPassword", Label = "Hasło", Group = "Hermon FTP" , IsEnabled = false},
 
             // Other settings
+            new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień (rozdzielone średnikiem)", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
             new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Inne ustawienia" },
