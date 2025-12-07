@@ -63,15 +63,19 @@ namespace RolmarSyncService.Services
                     return;
                 }
 
-                var imagesUrl = $"v1/photo/photo.php?m=getPhotos&lang=pl";
-                Log.Information($"Getting images from {imagesUrl}");
+                var images = new List<PhotoItem>();
+                //if (DateTime.Now.Day % 5 == 0)
+                //{
+                //    var imagesUrl = $"v1/photo/photo.php?m=getPhotos&lang=pl";
+                //    Log.Information($"Getting images from {imagesUrl}");
 
-                var images = await GetApiDataAsync<List<PhotosResponse>, PhotoItem>(imagesUrl);
-                if (!images.Any())
-                {
-                    Log.Warning("No images found. Aborting sync.");
-                    return;
-                }
+                //    images = await GetApiDataAsync<List<PhotosResponse>, PhotoItem>(imagesUrl);
+                //    if (!images.Any())
+                //    {
+                //        Log.Warning("No images found. Aborting sync.");
+                //        return;
+                //    }
+                //}
 
                 var fullProducts = BuildFullProductDtos(products, stock, images);
 
@@ -167,8 +171,8 @@ namespace RolmarSyncService.Services
                 // Safe conversions with logging
                 int id = SafeConvertToInt(p.Id, "Id", p.ProductIndex);
                 decimal weight = SafeConvertToDecimal(p.Weight, "Weight", p.ProductIndex);
+                decimal package = SafeConvertToDecimal(p.ErpPackage, "ErpPackage", p.ProductIndex) == 0 ? 1 : SafeConvertToDecimal(p.ErpPackage, "ErpPackage", p.ProductIndex);
                 decimal price = SafeConvertToDecimal(p.Price, "Price", p.ProductIndex);
-
                 var dto = new FullProductDto
                 {
                     Id = id,
@@ -180,7 +184,7 @@ namespace RolmarSyncService.Services
                     Specifications = p.Specifications,
                     Ean = p.Ean,
                     Cn = p.Cn,
-                    Price = price,
+                    Price = price / package,
                     Stock = stockDict.TryGetValue(p.ProductIndex, out var s) ? s.Stock : 0,
                     Unit = stockDict.TryGetValue(p.ProductIndex, out var s2) ? s2.Unit : p.Unit,
                     Images = imageDict.TryGetValue(p.ProductIndex, out var imgs) ? imgs : new List<PhotoItem>()
