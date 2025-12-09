@@ -52,7 +52,7 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "HermonFtpPassword", Label = "Hasło", Group = "Hermon FTP" , IsEnabled = false},
 
             // Other settings
-            new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień (rozdzielone średnikiem)", Group = "Inne ustawienia" },
+            new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
             new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Inne ustawienia" },
@@ -76,6 +76,11 @@ namespace ServiceManager.Helpers
             var builder = new DbConnectionStringBuilder { ConnectionString = connString };
             return builder.Cast<KeyValuePair<string, object>>()
                           .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? "");
+        }
+
+        public static string BuildConnectionString(Dictionary<string, string> values)
+        {
+            return string.Join(";", values.Select(kv => $"{kv.Key}={kv.Value}"));
         }
 
         public static readonly HashSet<string> ExcludedConnectionStringKeys = new(StringComparer.OrdinalIgnoreCase)

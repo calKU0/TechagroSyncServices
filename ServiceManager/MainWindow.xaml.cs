@@ -513,30 +513,80 @@ namespace ServiceManager
 
             try
             {
+                // Load external config file
                 var map = new ExeConfigurationFileMap { ExeConfigFilename = _selectedService.ExternalConfigPath };
                 var config = ConfigurationManager.OpenMappedExeConfiguration(map, ConfigurationUserLevel.None);
 
-                // Zapis podstawowej marży
-                var defaultMarginTextBox = ConfigStackPanel.Children.OfType<Grid>()
+                // --- 1) SAVE ALL APP SETTINGS FIELDS EXCEPT MarginRanges / DefaultMargin ---
+                foreach (var grid in ConfigStackPanel.Children.OfType<GroupBox>()
+                             .Select(g => g.Content).OfType<StackPanel>()
+                             .SelectMany(p => p.Children.OfType<Grid>()))
+                {
+                    var textBox = grid.Children.OfType<TextBox>().FirstOrDefault();
+                    if (textBox == null) continue;
+
+                    string key = textBox.Tag?.ToString();
+                    if (string.IsNullOrEmpty(key)) continue;
+
+                    // Skip these, handled separately
+                    if (key == "DefaultMargin" || key == "MarginRanges")
+                        continue;
+
+                    if (config.AppSettings.Settings[key] != null)
+                        config.AppSettings.Settings[key].Value = textBox.Text;
+                    else
+                        config.AppSettings.Settings.Add(key, textBox.Text);
+                }
+
+                // --- 2) SAVE ALL CONNECTION STRINGS ---
+                foreach (var grid in ConfigStackPanel.Children.OfType<GroupBox>()
+                             .Select(g => g.Content).OfType<StackPanel>()
+                             .SelectMany(p => p.Children.OfType<Grid>()))
+                {
+                    var textBox = grid.Children.OfType<TextBox>().FirstOrDefault();
+                    if (textBox == null) continue;
+
+                    if (!(textBox.Tag is string tag) || !tag.Contains("|"))
+                        continue;
+
+                    // Tag format: "ConnectionName|Key"
+                    var parts = tag.Split('|');
+                    string connName = parts[0];
+                    string connKey = parts[1];
+
+                    var conn = config.ConnectionStrings.ConnectionStrings[connName];
+                    if (conn == null) continue;
+
+                    var dict = ConfigHelper.ParseConnectionString(conn.ConnectionString);
+                    dict[connKey] = textBox.Text;
+
+                    conn.ConnectionString = ConfigHelper.BuildConnectionString(dict);
+                }
+
+                // --- 3) SAVE DEFAULT MARGIN ---
+                var defaultMarginTextBox = ConfigStackPanel.Children.OfType<GroupBox>()
+                    .Select(g => g.Content).OfType<StackPanel>()
+                    .SelectMany(p => p.Children.OfType<Grid>())
                     .SelectMany(g => g.Children.OfType<TextBox>())
                     .FirstOrDefault(tb => tb.Name == "DefaultMarginTextBox");
 
                 if (defaultMarginTextBox != null)
+                {
                     _defaultMargin = decimal.Parse(defaultMarginTextBox.Text);
 
-                if (config.AppSettings.Settings["DefaultMargin"] != null)
-                    config.AppSettings.Settings["DefaultMargin"].Value = _defaultMargin.ToString();
-                else
-                    config.AppSettings.Settings.Add("DefaultMargin", _defaultMargin.ToString());
+                    if (config.AppSettings.Settings["DefaultMargin"] != null)
+                        config.AppSettings.Settings["DefaultMargin"].Value = _defaultMargin.ToString();
+                    else
+                        config.AppSettings.Settings.Add("DefaultMargin", _defaultMargin.ToString());
+                }
 
-                // Zapis przedziałów
-                _marginRanges = MarginTextBoxes.Select(t =>
-                    new MarginRange
-                    {
-                        Min = decimal.Parse(t.Min.Text),
-                        Max = decimal.Parse(t.Max.Text),
-                        Margin = decimal.Parse(t.Margin.Text)
-                    }).ToList();
+                // --- 4) SAVE MARGIN RANGES ---
+                _marginRanges = MarginTextBoxes.Select(t => new MarginRange
+                {
+                    Min = decimal.Parse(t.Min.Text),
+                    Max = decimal.Parse(t.Max.Text),
+                    Margin = decimal.Parse(t.Margin.Text)
+                }).ToList();
 
                 string serialized = ConfigHelper.SerializeMarginRanges(_marginRanges);
 
@@ -545,14 +595,16 @@ namespace ServiceManager
                 else
                     config.AppSettings.Settings.Add("MarginRanges", serialized);
 
+                // --- SAVE WHOLE CONFIG ---
                 config.Save(ConfigurationSaveMode.Modified);
-                ConfigurationManager.RefreshSection("appSettings");
 
-                MessageBox.Show("Konfiguracja zapisana.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Konfiguracja zapisana.", "Info",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Nie udało się zapisać konfiguracji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Nie udało się zapisać konfiguracji: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

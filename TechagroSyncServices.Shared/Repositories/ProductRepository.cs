@@ -116,7 +116,7 @@ namespace TechagroSyncServices.Shared.Repositories
                 using (var cmd = new SqlCommand("dbo.DeleteNotSyncedProducts", connection))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
-
+                    cmd.CommandTimeout = 1200; // 20 minutes
                     cmd.Parameters.Add("@IntegrationCompany", SqlDbType.VarChar)
                         .Value = integrationCompany;
 

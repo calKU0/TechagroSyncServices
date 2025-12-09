@@ -122,16 +122,34 @@ namespace IntercarsSyncService.Services
                         .ToList();
 
                     Log.Information("Filtered product list to {Count} items based on import file", fullProducts.Count);
+
+                    var missingProductCodes = allowedSet
+                        .Where(code => !fullProducts
+                            .Any(p => p.TowKod.Equals(code, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+
+                    if (missingProductCodes.Any())
+                    {
+                        Log.Warning("The following {Count} product codes were NOT found in the API response:", missingProductCodes.Count);
+                        foreach (var code in missingProductCodes)
+                        {
+                            Log.Warning("Missing: {Code}", code);
+                        }
+                    }
+                    else
+                    {
+                        Log.Information("All product codes from import list were found in API response.");
+                    }
                 }
 
                 // Step 8: Sync to database
-                //var productSync = new ProductSyncService(_productRepo);
+                var productSync = new ProductSyncService(_productRepo);
 
                 // Step 8.1: Delete products not in the current import list
-                //await productSync.DeleteNotSyncedProducts(allowedTowKods);
+                await productSync.DeleteNotSyncedProducts(allowedTowKods);
 
                 // Step 8.2: Sync current products
-                //await productSync.SyncToDatabaseAsync(fullProducts);
+                await productSync.SyncToDatabaseAsync(fullProducts);
 
                 Log.Information("Product synchronization completed successfully.");
             }
