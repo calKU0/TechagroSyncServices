@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
+using TechagroSyncServices.Shared.Settings;
 
 namespace HermonSyncService.Helpers
 {
@@ -17,6 +18,17 @@ namespace HermonSyncService.Helpers
                 Port = ConfigHelper.GetInt("HermonFtpPort", 21),
                 Username = ConfigHelper.GetString("HermonFtpUsername"),
                 Password = ConfigHelper.GetString("HermonFtpPassword"),
+            };
+        }
+
+        public static SmtpSettings LoadSmtpSettings()
+        {
+            return new SmtpSettings
+            {
+                Host = ConfigHelper.GetString("SmtpHost"),
+                Port = ConfigHelper.GetInt("SmtpPort", 465),
+                User = ConfigHelper.GetString("SmtpUser"),
+                Password = ConfigHelper.GetString("SmtpPassword"),
             };
         }
 
@@ -41,5 +53,7 @@ namespace HermonSyncService.Helpers
         }
 
         public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
+
+        public static string GetEmailsToNotify() => ConfigHelper.GetString("EmailsToNotify");
     }
 }

@@ -100,10 +100,7 @@
     <Compile Include="DTOs\StockAggregationDto.cs" />
     <Compile Include="DTOs\StockPriceResponse.cs" />
     <Compile Include="Helpers\CsvHelperUtility.cs" />
-    <Compile Include="Helpers\HtmlHelper.cs" />
     <Compile Include="Helpers\HttpClientHelper.cs" />
-    <Compile Include="Helpers\ProductComparer.cs" />
-    <Compile Include="Services\ProductSyncService.cs" />
     <Compile Include="Settings\IntercarsApiSettings.cs" />
     <Compile Include="Helpers\AppSettingsLoader.cs" />
     <Compile Include="IntercarsSyncService.cs">

@@ -5,18 +5,17 @@ using System;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace AgroramiSyncService
 {
     public partial class AgroramiSyncService : ServiceBase
     {
         private readonly TimeSpan _interval;
-
-        // Repo
-        private readonly IProductRepository _productRepository;
 
         // Services
         private readonly ApiService _apiService;
@@ -33,10 +32,12 @@ namespace AgroramiSyncService
 
             // Repositories
             string connectionString = ConfigHelper.GetConnenctionString();
-            _productRepository = new ProductRepository(connectionString);
+            var productRepository = new ProductRepository(connectionString);
 
             // Services
-            _apiService = new ApiService(_productRepository);
+            var productSyncService = new ProductSyncService(productRepository);
+            var emailService = new EmailService(AppSettingsLoader.LoadSmtpSettings());
+            _apiService = new ApiService(productSyncService, emailService);
 
             InitializeComponent();
         }

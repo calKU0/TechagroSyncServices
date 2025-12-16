@@ -121,7 +121,6 @@
     <Compile Include="Services\ProductService.cs" />
     <Compile Include="Services\HermonApiClient.cs" />
     <Compile Include="Services\HermonFtpClient.cs" />
-    <Compile Include="Services\ProductSyncService.cs" />
     <Compile Include="Settings\HermonApiSettings.cs" />
     <Compile Include="Settings\HermonFtpSettings.cs" />
   </ItemGroup>

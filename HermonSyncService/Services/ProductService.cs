@@ -4,21 +4,29 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Repositories;
+using TechagroApiSync.Shared.DTOs;
+using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.DTOs;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace HermonSyncService.Services
 {
     public class ProductService
     {
         private readonly HermonApiClient _apiClient;
+        private readonly decimal _defaultMargin;
+        private readonly List<MarginRange> _marginRanges;
 
-        public ProductService(IProductRepository productRepo)
+        public ProductService()
         {
             var apiSettings = AppSettingsLoader.LoadApiSettings();
             _apiClient = new HermonApiClient(apiSettings);
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task<List<FtpProducts>> SyncProductsFromFtp()
@@ -135,50 +143,79 @@ namespace HermonSyncService.Services
         // DTO Builder
         // ------------------------------
 
-        public List<FullProductDto> BuildFullProducts(IEnumerable<FtpProducts> ftpProducts, IEnumerable<ProductsDetailResponse> apiDetails, IEnumerable<FtpImage> ftpImages)
+        public async Task<List<ProductDto>> BuildProductDtos(IEnumerable<FtpProducts> ftpProducts, IEnumerable<ProductsDetailResponse> apiDetails, IEnumerable<FtpImage> ftpImages)
         {
             Log.Information("Building full product data...");
 
-            return ftpProducts
-                .Select(ftpProduct =>
+            var tasks = ftpProducts.Select(async ftpProduct =>
+            {
+                var detail = apiDetails
+                    .FirstOrDefault(d => d.Id?.Equals(ftpProduct.Code, StringComparison.OrdinalIgnoreCase) == true);
+
+                if (detail == null)
+                    return null;
+
+                decimal totalQuantity = 0;
+                if (detail.BranchesAvailability != null && detail.BranchesAvailability.Any())
                 {
-                    var detail = apiDetails
-                        .FirstOrDefault(d => d.Id?.Equals(ftpProduct.Code, StringComparison.OrdinalIgnoreCase) == true);
+                    totalQuantity = detail.BranchesAvailability
+                        .Select(b => ParseQuantity(b.Quantity))
+                        .Sum();
+                }
 
-                    if (detail == null)
-                        return null;
+                var imagesTemp = ftpImages
+                    .Where(img => img.FileName.StartsWith($"{ftpProduct.Code}_"))
+                    .ToList();
 
-                    decimal totalQuantity = 0;
-                    if (detail.BranchesAvailability != null && detail.BranchesAvailability.Any())
-                    {
-                        totalQuantity = detail.BranchesAvailability
-                            .Select(b => ParseQuantity(b.Quantity))
-                            .Sum();
-                    }
+                decimal applicableMargin = MarginHelper.CalculateMargin(
+                    detail.ClientPrice.NetPrice,
+                    _defaultMargin,
+                    _marginRanges);
 
-                    var images = ftpImages
-                        .Where(img => img.FileName.StartsWith($"{ftpProduct.Code}_"))
-                        .ToList();
+                var productCode = ftpProduct.Code + "HR";
 
-                    return new FullProductDto
-                    {
-                        Code = ftpProduct.Code,
-                        Name = ftpProduct.Name,
-                        Ean = ftpProduct.Ean,
-                        Unit = ftpProduct.Unit,
-                        CN = ftpProduct.CN,
-                        Weight = ftpProduct.Weight,
-                        Description = ftpProduct.Description,
-                        Brand = detail?.ProducerName,
-                        PriceNet = detail.ClientPrice.NetPrice,
-                        PriceGross = detail.ClientPrice.GrossPrice,
-                        Tax = detail?.ClientPrice?.TaxRate ?? 0,
-                        Quantity = totalQuantity,
-                        Images = images
-                    };
-                })
+                return new ProductDto
+                {
+                    Id = 0,
+                    Code = productCode,
+                    Ean = ftpProduct.Ean,
+                    Name = ftpProduct.Name,
+                    Quantity = totalQuantity,
+                    NetBuyPrice = detail.ClientPrice.NetPrice,
+                    GrossBuyPrice = detail.ClientPrice.GrossPrice,
+                    NetSellPrice = detail.ClientPrice.NetPrice * ((applicableMargin / 100m) + 1),
+                    GrossSellPrice = detail.ClientPrice.GrossPrice * ((applicableMargin / 100m) + 1),
+                    Vat = detail.ClientPrice?.TaxRate ?? 0,
+                    Weight = ftpProduct.Weight,
+                    Brand = detail.ProducerName,
+                    Unit = ftpProduct.Unit,
+                    IntegrationCompany = IntegrationCompany.HERMON,
+                    Description = ftpProduct.Description,
+                    Images = await BuildProductImagesAsync(productCode, imagesTemp)
+                };
+            });
+
+            var result = await Task.WhenAll(tasks);
+
+            return result
                 .Where(p => p != null)
                 .ToList();
+        }
+
+        private async Task<List<ImageDto>> BuildProductImagesAsync(string productCode, List<FtpImage> images)
+        {
+            var result = new List<ImageDto>(images.Count);
+
+            foreach (var img in images)
+            {
+                result.Add(new ImageDto
+                {
+                    Name = img.FileName,
+                    Data = File.ReadAllBytes(img.FilePath),
+                });
+            }
+
+            return result;
         }
 
         private static decimal ParseQuantity(string quantityStr)

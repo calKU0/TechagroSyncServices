@@ -3,14 +3,19 @@ using HermonSyncService.Helpers;
 using HermonSyncService.Services;
 using Serilog;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
+using TechagroApiSync.Shared.Helpers;
+using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace HermonSyncService
 {
@@ -18,13 +23,11 @@ namespace HermonSyncService
     {
         private readonly TimeSpan _interval;
 
-        // Repo
-        private readonly IProductRepository _productRepository;
-
         // Services
         private readonly ProductService _productService;
 
-        private readonly ProductSyncService _productSyncService;
+        private readonly IProductSyncService _productSyncService;
+        private readonly IEmailService _emailService;
 
         private Timer _timer;
         private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
@@ -37,13 +40,17 @@ namespace HermonSyncService
 
             _interval = AppSettingsLoader.GetFetchInterval();
 
+            // Settings
+            var smtpSettings = AppSettingsLoader.LoadSmtpSettings();
+
             // Repositories
             string connectionString = ConfigHelper.GetConnenctionString();
-            _productRepository = new ProductRepository(connectionString);
+            var productRepository = new ProductRepository(connectionString);
 
             // Services
-            _productService = new ProductService(_productRepository);
-            _productSyncService = new ProductSyncService(_productRepository);
+            _productService = new ProductService();
+            _productSyncService = new ProductSyncService(productRepository);
+            _emailService = new EmailService(smtpSettings);
 
             InitializeComponent();
         }
@@ -85,10 +92,59 @@ namespace HermonSyncService
                 var detailedProductData = await _productService.FetchProductDetailsFromApi(basicProductData);
 
                 // 4. Building full product data
-                var fullProductData = _productService.BuildFullProducts(basicProductData, detailedProductData, images);
+                var products = await _productService.BuildProductDtos(basicProductData, detailedProductData, images);
 
-                // 5. Updating database with synchronized data
-                await _productSyncService.SyncToDatabaseAsync(fullProductData);
+                // Step 5.1: Detect newly added products
+                var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
+
+                if (newProducts.Any())
+                {
+                    var to = AppSettingsLoader.GetEmailsToNotify();
+
+                    await BatchEmailNotifier.SendAsync(
+                        newProducts,
+                        100,
+                        batch => $"Nowe produkty ({newProducts.Count})",
+                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Hermon"),
+                        recipients: to,
+                        from: "Hermon Sync Service",
+                        emailService: _emailService);
+                }
+                else
+                {
+                    Log.Information("No new products detected.");
+                }
+
+                // Step 6: Export to JSON
+                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
+                Log.Information("JSON file created at {Path}", snapshotPath);
+
+                // Step 7: Filter by import list
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+
+                var allowedCodes = FileUtils.ReadImportList(importFilePath);
+
+                if (!allowedCodes.Any())
+                {
+                    Log.Warning("Import file is empty or missing. Aborting import");
+                    return;
+                }
+
+                products = ImportFilterHelper.FilterByAllowedCodes(products, allowedCodes, p => p.Code, out var missingCodes).ToList();
+
+                if (missingCodes.Any())
+                {
+                    Log.Warning("Missing {Count} product codes", missingCodes.Count);
+                    foreach (var code in missingCodes)
+                        Log.Warning("Missing: {Code}", code);
+                }
+
+                // Step 8.1: Delete products not in the current import list
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.HERMON);
+
+                // Step 8.2: Sync current products
+                await _productSyncService.SyncToDatabaseAsync(products);
             }
             catch (Exception ex)
             {

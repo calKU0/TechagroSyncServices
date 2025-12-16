@@ -5,6 +5,7 @@ using System;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
@@ -22,6 +23,7 @@ namespace IntercarsSyncService
         // Services
         private readonly FileService _apiService;
 
+        private readonly IProductSyncService _productSyncService;
         private readonly IEmailService _emailService;
 
         private Timer _timer;
@@ -31,6 +33,7 @@ namespace IntercarsSyncService
             // Serilog configuration and initialization
             int logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();
             LogConfig.Configure(logsExpirationDays);
+            var apiSettings = AppSettingsLoader.LoadApiSettings();
 
             _interval = AppSettingsLoader.GetFetchInterval();
 
@@ -39,9 +42,12 @@ namespace IntercarsSyncService
             _productRepository = new ProductRepository(connectionString);
 
             // Services
+            var imageClient = HttpClientHelper.CreateImageClient();
+            var productsClient = HttpClientHelper.CreateAuthorizedClient(apiSettings.Username, apiSettings.Password);
             var smtpSettings = AppSettingsLoader.LoadSmtpSettings();
+            _productSyncService = new ProductSyncService(_productRepository, imageClient);
             _emailService = new EmailService(smtpSettings);
-            _apiService = new FileService(_productRepository, _emailService);
+            _apiService = new FileService(_productSyncService, _emailService, productsClient);
 
             InitializeComponent();
         }

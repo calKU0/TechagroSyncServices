@@ -4,23 +4,35 @@ using AgroramiSyncService.Settings;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Repositories;
+using TechagroApiSync.Shared.DTOs;
+using TechagroApiSync.Shared.Enums;
+using TechagroApiSync.Shared.Helpers;
+using TechagroApiSync.Shared.Services;
+using TechagroSyncServices.Shared.DTOs;
+using TechagroSyncServices.Shared.Helpers;
+using TechagroSyncServices.Shared.Services;
 
 namespace AgroramiSyncService.Services
 {
     public class ApiService
     {
         private readonly AgroramiApiSettings _apiSettings;
-        private readonly IProductRepository _productRepo;
+        private readonly IEmailService _emailService;
+        private readonly IProductSyncService _productSyncService;
         private readonly GraphQLClient _client;
+        private readonly decimal _defaultMargin;
+        private readonly List<MarginRange> _marginRanges;
 
-        public ApiService(IProductRepository productRepo)
+        public ApiService(IProductSyncService productSyncService, IEmailService emailService)
         {
-            _productRepo = productRepo;
-            _apiSettings = AppSettingsLoader.LoadApiSettings();
+            _productSyncService = productSyncService;
             _client = new GraphQLClient(_apiSettings.BaseUrl);
+            _apiSettings = AppSettingsLoader.LoadApiSettings();
+            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
+            _marginRanges = AppSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -29,12 +41,14 @@ namespace AgroramiSyncService.Services
             {
                 Log.Information("Starting product synchronization...");
 
+                // Step 1: Get Customer Token
                 var token = await GetCustomerTokenAsync();
                 var allProducts = new List<ProductsResponse>();
                 int currentPage = 1;
                 int maxRetries = 3;
                 int currentTry = 0;
 
+                // Step 2: Download products with pagination
                 while (true && currentTry <= maxRetries)
                 {
                     try
@@ -68,14 +82,67 @@ namespace AgroramiSyncService.Services
                     return;
                 }
 
+                // Step 3: Download attributes
                 var attributes = await GetAttributeMetadataAsync(token);
 
+                // Step 4: Aggregate and merge data
                 Log.Information("Mapping attribute labels...");
                 MapAttributeLabels(allProducts, attributes);
 
+                var products = await BuildProductDtos(allProducts);
                 Log.Information("Mapping completed. Syncing {Count} products to database...", allProducts.Count);
-                var productSync = new ProductSyncService(_productRepo);
-                await productSync.SyncToDatabaseAsync(allProducts);
+
+                // Step 5.1: Detect newly added products
+                var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
+
+                if (newProducts.Any())
+                {
+                    var to = AppSettingsLoader.GetEmailsToNotify();
+
+                    await BatchEmailNotifier.SendAsync(
+                        newProducts,
+                        100,
+                        batch => $"Nowe produkty ({newProducts.Count})",
+                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Agrorami"),
+                        recipients: to,
+                        from: "Agrorami Sync Service",
+                        emailService: _emailService);
+                }
+                else
+                {
+                    Log.Information("No new products detected.");
+                }
+
+                // Step 6: Export to JSON
+                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
+                Log.Information("JSON file created at {Path}", snapshotPath);
+
+                // Step 7: Filter by import list
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+
+                var allowedCodes = FileUtils.ReadImportList(importFilePath);
+
+                if (!allowedCodes.Any())
+                {
+                    Log.Warning("Import file is empty or missing. Aborting import");
+                    return;
+                }
+
+                products = ImportFilterHelper.FilterByAllowedCodes(products, allowedCodes, p => p.Code, out var missingCodes).ToList();
+
+                if (missingCodes.Any())
+                {
+                    Log.Warning("Missing {Count} product codes", missingCodes.Count);
+                    foreach (var code in missingCodes)
+                        Log.Warning("Missing: {Code}", code);
+                }
+
+                // Step 8.1: Delete products not in the current import list
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AGRORAMI);
+
+                // Step 8.2: Sync current products
+                await _productSyncService.SyncToDatabaseAsync(products);
 
                 Log.Information("Product synchronization completed successfully.");
             }
@@ -87,12 +154,15 @@ namespace AgroramiSyncService.Services
 
         private async Task<string> GetCustomerTokenAsync()
         {
-            var query = @"
-                mutation {
-                    generateCustomerToken(email: ""techagro@poczta.internetdsl.pl"", password: ""19750723SmSi@"") {
+            var query = $@"
+                mutation {{
+                    generateCustomerToken(
+                        email: ""{_apiSettings.Login}"",
+                        password: ""{_apiSettings.Password}""
+                    ) {{
                         token
-                    }
-                }";
+                    }}
+                }}";
 
             var result = await _client.ExecuteAsync<Dictionary<string, CustomerTokenResponse>>(query);
             return result["generateCustomerToken"].Token;
@@ -209,6 +279,71 @@ namespace AgroramiSyncService.Services
                         p.UnitLabel = unitLabel;
                 }
             }
+        }
+
+        private async Task<List<ProductDto>> BuildProductDtos(List<ProductsResponse> products)
+        {
+            var result = new List<ProductDto>(products.Count);
+
+            foreach (var product in products)
+            {
+                decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
+                product.Sku = product.Sku + "AR";
+                product.Name = product.Name + " " + product.CatalogNumber;
+
+                var descriptionText = string.Empty;
+
+                if (!string.IsNullOrWhiteSpace(product.CatalogNumber))
+                {
+                    descriptionText += ("<p><strong>Numer katalogowy: " + product.CatalogNumber + "</strong></p>");
+                }
+
+                if (!string.IsNullOrWhiteSpace(product.Description.Html))
+                {
+                    descriptionText += (product.Description.Html);
+                }
+
+                // 1. Upsert Product
+                var dto = new ProductDto
+                {
+                    Id = product.Id,
+                    Code = product.Sku,
+                    Ean = product.Ean,
+                    Name = product.Name,
+                    Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
+                    NetBuyPrice = product.PriceRange.MinimumPrice.IndividualPrice.Net,
+                    GrossBuyPrice = product.PriceRange.MinimumPrice.IndividualPrice.Gross,
+                    NetSellPrice = product.PriceRange.MinimumPrice.IndividualPrice.Net * ((applicableMargin / 100m) + 1),
+                    GrossSellPrice = product.PriceRange.MinimumPrice.IndividualPrice.Gross * ((applicableMargin / 100m) + 1),
+                    Vat = 23,
+                    Weight = product.Weight ?? 0,
+                    Brand = product.ManufacturerLabel,
+                    Unit = UnitHelpers.MapUnitLabel(product.UnitLabel),
+                    IntegrationCompany = IntegrationCompany.AGRORAMI,
+                    Description = descriptionText,
+                    Images = await BuildProductImagesAsync(product.Sku, product.MediaGallery),
+                };
+
+                result.Add(dto);
+            }
+
+            return result;
+        }
+
+        private async Task<List<ImageDto>> BuildProductImagesAsync(string productCode, List<MediaGalleryItem> images)
+        {
+            var result = new List<ImageDto>(images.Count);
+
+            foreach (var img in images)
+            {
+                result.Add(new ImageDto
+                {
+                    Name = $"{productCode}_{img.Position}",
+                    Url = img.Url
+                });
+            }
+
+            return result;
         }
     }
 }

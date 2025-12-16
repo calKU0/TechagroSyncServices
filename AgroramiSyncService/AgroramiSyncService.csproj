@@ -112,7 +112,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\ApiService.cs" />
     <Compile Include="Services\GraphQLClient.cs" />
-    <Compile Include="Services\ProductSyncService.cs" />
     <Compile Include="Settings\AgroramiApiSettings.cs" />
   </ItemGroup>
   <ItemGroup>
