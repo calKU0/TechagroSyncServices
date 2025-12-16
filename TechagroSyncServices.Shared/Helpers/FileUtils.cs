@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace TechagroSyncServices.Shared.Helpers
 {
@@ -22,7 +22,8 @@ namespace TechagroSyncServices.Shared.Helpers
             var options = new JsonSerializerOptions
             {
                 WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
             using (var stream = File.Create(filePath))

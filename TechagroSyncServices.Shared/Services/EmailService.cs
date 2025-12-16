@@ -3,7 +3,6 @@ using MailKit.Security;
 using MimeKit;
 using System;
 using System.Threading.Tasks;
-using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Settings;
 
 namespace TechagroSyncServices.Shared.Services
@@ -17,10 +16,10 @@ namespace TechagroSyncServices.Shared.Services
             _smtpSettings = smtpSettings;
         }
 
-        public async Task SendEmailAsync(string to, string subject, string htmlBody)
+        public async Task SendEmailAsync(string to, string from, string subject, string htmlBody)
         {
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Intercars Sync Service", _smtpSettings.User));
+            message.From.Add(new MailboxAddress(from, _smtpSettings.User));
 
             var recipients = to.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var address in recipients)

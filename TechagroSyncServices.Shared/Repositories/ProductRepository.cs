@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
-using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace TechagroSyncServices.Shared.Repositories
 {
@@ -40,7 +40,7 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.AddWithValue("@WAGA", productDto.Weight);
                     cmd.Parameters.AddWithValue("@PRODUCENT", productDto.Brand ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@ID_PRODUCENTA", productDto.Id);
-                    cmd.Parameters.AddWithValue("@INTEGRATION_COMPANY", productDto.IntegrationCompany ?? "GASKA");
+                    cmd.Parameters.AddWithValue("@INTEGRATION_COMPANY", productDto.IntegrationCompany.ToString());
                     cmd.Parameters.AddWithValue("@UNIT", productDto.Unit ?? (object)DBNull.Value);
 
                     var resultParam = cmd.Parameters.Add("@Result", SqlDbType.Int);
@@ -107,7 +107,7 @@ namespace TechagroSyncServices.Shared.Repositories
             return products;
         }
 
-        public async Task<int> DeleteNotSyncedProducts(string integrationCompany, List<string> codes)
+        public async Task<int> DeleteNotSyncedProducts(IntegrationCompany integrationCompany, List<string> codes)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
@@ -117,8 +117,7 @@ namespace TechagroSyncServices.Shared.Repositories
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.CommandTimeout = 7200; // 120 minutes
-                    cmd.Parameters.Add("@IntegrationCompany", SqlDbType.VarChar)
-                        .Value = integrationCompany;
+                    cmd.Parameters.Add("@IntegrationCompany", SqlDbType.VarChar).Value = integrationCompany.ToString();
 
                     var dt = new DataTable();
                     dt.Columns.Add("Code", typeof(string));

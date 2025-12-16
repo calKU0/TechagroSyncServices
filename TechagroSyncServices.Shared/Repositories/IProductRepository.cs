@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 
 namespace TechagroSyncServices.Shared.Repositories
@@ -12,7 +13,7 @@ namespace TechagroSyncServices.Shared.Repositories
 
         Task UpsertProductImageAsync(string code, string fileName, byte[] imageData, bool skipWhenExistsImages = false);
 
-        Task<int> DeleteNotSyncedProducts(string intergrationCompany, List<string> codes);
+        Task<int> DeleteNotSyncedProducts(IntegrationCompany integrationCompany, List<string> codes);
 
         Task<List<int>> GetProductsWithoutDescription(int topCount);
     }

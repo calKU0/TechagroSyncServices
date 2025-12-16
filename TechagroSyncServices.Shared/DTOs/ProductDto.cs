@@ -1,4 +1,8 @@
-﻿namespace TechagroSyncServices.Shared.DTOs
+﻿using System.Collections.Generic;
+using TechagroApiSync.Shared.DTOs;
+using TechagroApiSync.Shared.Enums;
+
+namespace TechagroSyncServices.Shared.DTOs
 {
     public class ProductDto
     {
@@ -16,6 +20,8 @@
         public string Unit { get; set; }
         public decimal Weight { get; set; }
         public string Brand { get; set; }
-        public string IntegrationCompany { get; set; }
+        public IntegrationCompany IntegrationCompany { get; set; }
+        public string Description { get; set; }
+        public List<ImageDto> Images { get; set; } = new List<ImageDto>();
     }
 }

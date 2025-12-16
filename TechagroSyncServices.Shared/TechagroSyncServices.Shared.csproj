@@ -100,18 +100,27 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DTOs\ImageDto.cs" />
     <Compile Include="DTOs\MarginRange.cs" />
     <Compile Include="DTOs\ProductDto.cs" />
+    <Compile Include="Enums\IntegrationCompany.cs" />
+    <Compile Include="Helpers\BatchEmailNotifier.cs" />
     <Compile Include="Helpers\CalculateMargin.cs" />
     <Compile Include="Helpers\ConfigHelper.cs" />
     <Compile Include="Helpers\DescriptionHelper.cs" />
     <Compile Include="Helpers\FileUtils.cs" />
+    <Compile Include="Helpers\HtmlHelper.cs" />
+    <Compile Include="Helpers\ImportFilterHelper.cs" />
+    <Compile Include="Helpers\SnapshotChangeDetector.cs" />
+    <Compile Include="Helpers\UnitHelpers.cs" />
     <Compile Include="Services\IEmailService.cs" />
     <Compile Include="Logging\LogConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repositories\IProductRepository.cs" />
     <Compile Include="Repositories\ProductRepository.cs" />
     <Compile Include="Services\EmailService.cs" />
+    <Compile Include="Services\IProductSyncService.cs" />
+    <Compile Include="Services\ProductSyncService.cs" />
     <Compile Include="Settings\SmtpSettings.cs" />
   </ItemGroup>
   <ItemGroup>
