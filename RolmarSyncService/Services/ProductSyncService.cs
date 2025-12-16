@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -55,7 +56,7 @@ namespace RolmarSyncService.Services
                         Weight = product.Weight,
                         Brand = product.Brand,
                         Unit = "szt.",
-                        IntegrationCompany = "ROLMAR"
+                        IntegrationCompany = IntegrationCompany.ROLMAR
                     };
 
                     int result = await _productRepo.UpsertProductAsync(dto);

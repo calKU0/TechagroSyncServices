@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -81,7 +82,7 @@ namespace AgrolandSyncService.Services
                                 Weight = apiProduct.Weight ?? 0,
                                 Brand = apiProduct.Brand?.Name,
                                 Unit = apiProduct.Unit,
-                                IntegrationCompany = "AGROLAND"
+                                IntegrationCompany = IntegrationCompany.AGROLAND
                             };
 
                             int result = await _productRepo.UpsertProductAsync(dto);

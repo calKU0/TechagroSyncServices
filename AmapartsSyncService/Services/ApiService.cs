@@ -13,6 +13,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -130,7 +131,7 @@ namespace AmapartsSyncService.Services
                                 Weight = 0,
                                 Brand = product.Manufacturer,
                                 Unit = "szt.",
-                                IntegrationCompany = "AMA"
+                                IntegrationCompany = IntegrationCompany.AMA
                             };
 
                             int result = 1;

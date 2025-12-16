@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -102,7 +103,7 @@ namespace GaskaSyncService.Services
                                     Weight = (decimal)apiProduct.GrossWeight,
                                     Brand = apiProduct.SupplierName,
                                     Unit = apiProduct.Unit,
-                                    IntegrationCompany = "GĄSKA"
+                                    IntegrationCompany = IntegrationCompany.GĄSKA
                                 };
 
                                 int result = await _productRepo.UpsertProductAsync(dto);
