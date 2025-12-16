@@ -33,7 +33,7 @@ BEGIN
             BEGIN TRANSACTION;
 
             -- 1. Delete images
-            DELETE FROM dbo.ArtykulBlob
+            DELETE FROM dbo.ARTYKUL_BLOB
             WHERE Indeks_katalogowy = @Index;
 
             -- 2. Delete product

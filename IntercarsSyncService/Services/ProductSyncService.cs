@@ -132,6 +132,7 @@ namespace IntercarsSyncService.Services
         {
             try
             {
+                Log.Information("Attempting to delete products that are not in the import list. This takes a while...");
                 int result = await _productRepo.DeleteNotSyncedProducts("INTERCARS", productCodes);
                 Log.Information("Deleted {Count} not synced products from database.", result);
             }
