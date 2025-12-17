@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
@@ -16,6 +17,12 @@ namespace TechagroSyncServices.Shared.Helpers
             {
                 if (!string.IsNullOrEmpty(img.Url))
                     return img.Url;
+
+                if (!string.IsNullOrEmpty(img.Path))
+                {
+                    var data = File.ReadAllBytes(img.Path);
+                    img.Data = data;
+                }
 
                 if (img.Data != null && img.Data.Length > 0)
                 {

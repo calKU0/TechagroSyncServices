@@ -143,29 +143,42 @@ namespace HermonSyncService.Services
         // DTO Builder
         // ------------------------------
 
-        public async Task<List<ProductDto>> BuildProductDtos(IEnumerable<FtpProducts> ftpProducts, IEnumerable<ProductsDetailResponse> apiDetails, IEnumerable<FtpImage> ftpImages)
+        public Task<List<ProductDto>> BuildProductDtos(IEnumerable<FtpProducts> ftpProducts, IEnumerable<ProductsDetailResponse> apiDetails, IEnumerable<FtpImage> ftpImages)
         {
             Log.Information("Building full product data...");
 
-            var tasks = ftpProducts.Select(async ftpProduct =>
-            {
-                var detail = apiDetails
-                    .FirstOrDefault(d => d.Id?.Equals(ftpProduct.Code, StringComparison.OrdinalIgnoreCase) == true);
+            // Index API details by product code
+            var detailsByCode = apiDetails
+                .Where(d => d.Id != null)
+                .ToDictionary(d => d.Id, StringComparer.OrdinalIgnoreCase);
 
-                if (detail == null)
-                    return null;
+            // Group images by product code prefix
+            var imagesByCode = ftpImages
+                .GroupBy(img => GetProductCodeFromFileName(img.FileName))
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<ProductDto>();
+
+            foreach (var ftpProduct in ftpProducts)
+            {
+                ProductsDetailResponse detail;
+                if (!detailsByCode.TryGetValue(ftpProduct.Code, out detail))
+                    continue;
 
                 decimal totalQuantity = 0;
-                if (detail.BranchesAvailability != null && detail.BranchesAvailability.Any())
+                if (detail.BranchesAvailability != null)
                 {
-                    totalQuantity = detail.BranchesAvailability
-                        .Select(b => ParseQuantity(b.Quantity))
-                        .Sum();
+                    foreach (var branch in detail.BranchesAvailability)
+                    {
+                        totalQuantity += ParseQuantity(branch.Quantity);
+                    }
                 }
 
-                var imagesTemp = ftpImages
-                    .Where(img => img.FileName.StartsWith($"{ftpProduct.Code}_"))
-                    .ToList();
+                List<FtpImage> imagesTemp;
+                if (!imagesByCode.TryGetValue(ftpProduct.Code, out imagesTemp))
+                {
+                    imagesTemp = new List<FtpImage>();
+                }
 
                 decimal applicableMargin = MarginHelper.CalculateMargin(
                     detail.ClientPrice.NetPrice,
@@ -175,7 +188,7 @@ namespace HermonSyncService.Services
                 string code = ftpProduct.Code + "HR";
                 string productCode = code.Length > 20 ? code.Substring(0, 20) : code;
 
-                return new ProductDto
+                result.Add(new ProductDto
                 {
                     Id = 0,
                     Code = productCode,
@@ -186,24 +199,20 @@ namespace HermonSyncService.Services
                     GrossBuyPrice = detail.ClientPrice.GrossPrice,
                     NetSellPrice = detail.ClientPrice.NetPrice * ((applicableMargin / 100m) + 1),
                     GrossSellPrice = detail.ClientPrice.GrossPrice * ((applicableMargin / 100m) + 1),
-                    Vat = detail.ClientPrice?.TaxRate ?? 0,
+                    Vat = detail.ClientPrice != null ? detail.ClientPrice.TaxRate : 0,
                     Weight = ftpProduct.Weight,
                     Brand = detail.ProducerName,
                     Unit = ftpProduct.Unit,
                     IntegrationCompany = IntegrationCompany.HERMON,
                     Description = ftpProduct.Description,
-                    Images = await BuildProductImagesAsync(productCode, imagesTemp)
-                };
-            });
+                    Images = BuildProductImages(productCode, imagesTemp)
+                });
+            }
 
-            var result = await Task.WhenAll(tasks);
-
-            return result
-                .Where(p => p != null)
-                .ToList();
+            return Task.FromResult(result);
         }
 
-        private async Task<List<ImageDto>> BuildProductImagesAsync(string productCode, List<FtpImage> images)
+        private List<ImageDto> BuildProductImages(string productCode, List<FtpImage> images)
         {
             var result = new List<ImageDto>(images.Count);
 
@@ -212,11 +221,20 @@ namespace HermonSyncService.Services
                 result.Add(new ImageDto
                 {
                     Name = img.FileName,
-                    Data = File.ReadAllBytes(img.FilePath),
+                    Path = img.FilePath
                 });
             }
 
             return result;
+        }
+
+        private static string GetProductCodeFromFileName(string fileName)
+        {
+            int underscoreIndex = fileName.IndexOf('_');
+            if (underscoreIndex <= 0)
+                return fileName;
+
+            return fileName.Substring(0, underscoreIndex);
         }
 
         private static decimal ParseQuantity(string quantityStr)

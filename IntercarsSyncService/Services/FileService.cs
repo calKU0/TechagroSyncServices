@@ -69,10 +69,41 @@ namespace IntercarsSyncService.Services
                     return;
                 }
 
-                // Step 4: Aggregate and merge data
+                var imageIndex = new Dictionary<string, List<ImageDto>>();
+
+                foreach (var img in images)
+                {
+                    List<ImageDto> list;
+                    if (!imageIndex.TryGetValue(img.TowKod, out list))
+                    {
+                        list = new List<ImageDto>();
+                        imageIndex[img.TowKod] = list;
+                    }
+
+                    list.Add(new ImageDto
+                    {
+                        Name = img.TowKod + "_" + img.SortNr,
+                        Url = img.ImageLink
+                    });
+                }
+
+                // Step 4.1: Aggregate and merge data
                 var aggregatedStock = AggregateStockData(stockData);
-                var fullProducts = await BuildProductDtosAsync(products, aggregatedStock, images);
+
+                var fullProducts = BuildProductDtos(products, aggregatedStock, imageIndex);
                 Log.Information("Merged {Count} products", fullProducts.Count);
+
+                // Step 4.2: Cleanup
+                products.Clear();
+                products = null;
+                stockData.Clear();
+                stockData = null;
+                aggregatedStock.Clear();
+                aggregatedStock = null;
+                images.Clear();
+                images = null;
+                imageIndex.Clear();
+                images = null;
 
                 // Step 5.1: Detect newly added products
                 var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
@@ -144,8 +175,11 @@ namespace IntercarsSyncService.Services
             var latestFile = await GetLatestFileAsync("ProductInformation");
             if (latestFile == null) return new List<ProductResponse>();
 
-            var zipBytes = await _httpClient.GetByteArrayAsync(latestFile.Url);
-            return CsvHelperUtility.ParseCsvFromZip<ProductResponse>(zipBytes);
+            var stream = await _httpClient.GetStreamAsync(latestFile.Url);
+            using (stream)
+            {
+                return CsvHelperUtility.ParseCsvFromZipStream<ProductResponse>(stream).ToList();
+            }
         }
 
         private async Task<List<StockPriceDto>> GetLatestStockPriceAsync()
@@ -154,8 +188,11 @@ namespace IntercarsSyncService.Services
             var latestFile = await GetLatestFileAsync("Stock_price");
             if (latestFile == null) return new List<StockPriceDto>();
 
-            var zipBytes = await _httpClient.GetByteArrayAsync(latestFile.Url);
-            return CsvHelperUtility.ParseCsvFromZip<StockPriceDto>(zipBytes);
+            var stream = await _httpClient.GetStreamAsync(latestFile.Url);
+            using (stream)
+            {
+                return CsvHelperUtility.ParseCsvFromZipStream<StockPriceDto>(stream).ToList();
+            }
         }
 
         private async Task<List<ImageResponse>> GetLatestProductImagesAsync()
@@ -164,8 +201,11 @@ namespace IntercarsSyncService.Services
             var latestFile = await GetLatestFileAsync("Pictures");
             if (latestFile == null) return new List<ImageResponse>();
 
-            var zipBytes = await _httpClient.GetByteArrayAsync(latestFile.Url);
-            return CsvHelperUtility.ParseCsvFromZip<ImageResponse>(zipBytes);
+            var stream = await _httpClient.GetStreamAsync(latestFile.Url);
+            using (stream)
+            {
+                return CsvHelperUtility.ParseCsvFromZipStream<ImageResponse>(stream).ToList();
+            }
         }
 
         // -------------------------------------
@@ -251,12 +291,8 @@ namespace IntercarsSyncService.Services
                 .ToDictionary(x => x.TowKod, x => x);
         }
 
-        private async Task<List<ProductDto>> BuildProductDtosAsync(List<ProductResponse> products, Dictionary<string, StockAggregationDto> aggregatedStock, List<ImageResponse> images)
+        private List<ProductDto> BuildProductDtos(List<ProductResponse> products, Dictionary<string, StockAggregationDto> aggregatedStock, Dictionary<string, List<ImageDto>> imageIndex)
         {
-            var imageGroups = images
-                .GroupBy(i => i.TowKod)
-                .ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortNr).ToList());
-
             var result = new List<ProductDto>(products.Count);
 
             foreach (var p in products)
@@ -265,15 +301,17 @@ namespace IntercarsSyncService.Services
                 {
                     Code = p.TowKod.Length > 20 ? p.TowKod.Substring(0, 20) : p.TowKod,
                     TradingCode = p.IcIndex,
-                    Name = $"{p.Description} {p.IcIndex}",
-                    Ean = p.Barcodes?.Split(',').FirstOrDefault(),
+                    Name = p.Description + " " + p.IcIndex,
+                    Ean = p.Barcodes != null ? p.Barcodes.Split(',')[0] : null,
                     Brand = p.Manufacturer,
                     Description = p.Description,
                     Weight = p.PackageWeight ?? 0,
                     Unit = "szt.",
                     Vat = 23,
                     IntegrationCompany = IntegrationCompany.INTERCARS,
-                    Images = await BuildProductImagesAsync(imageGroups, p.TowKod)
+                    Images = imageIndex.TryGetValue(p.TowKod, out var imgs)
+                        ? imgs
+                        : new List<ImageDto>()
                 };
 
                 if (aggregatedStock.TryGetValue(p.TowKod, out var stock))
@@ -291,25 +329,6 @@ namespace IntercarsSyncService.Services
                 }
 
                 result.Add(dto);
-            }
-
-            return result;
-        }
-
-        private async Task<List<ImageDto>> BuildProductImagesAsync(Dictionary<string, List<ImageResponse>> imageGroups, string towKod)
-        {
-            if (!imageGroups.TryGetValue(towKod, out var images))
-                return new List<ImageDto>();
-
-            var result = new List<ImageDto>(images.Count);
-
-            foreach (var img in images)
-            {
-                result.Add(new ImageDto
-                {
-                    Name = $"{img.TowKod}_{img.SortNr}",
-                    Url = img.ImageLink
-                });
             }
 
             return result;

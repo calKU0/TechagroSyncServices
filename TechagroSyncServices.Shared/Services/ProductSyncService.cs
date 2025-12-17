@@ -1,6 +1,7 @@
 ﻿using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -95,6 +96,18 @@ namespace TechagroApiSync.Shared.Services
                                         Log.Warning(ex, "Failed to download image for {Code} from {Url}", product.Code, img.Url);
                                     }
                                 }
+                                else if (!string.IsNullOrEmpty(img.Path))
+                                {
+                                    try
+                                    {
+                                        img.Data = File.ReadAllBytes(img.Path);
+                                        Log.Information("Downloaded image for {Code} from {Path}", product.Code, img.Path);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Log.Warning(ex, "Failed to download image for {Code} from {Url}", product.Code, img.Url);
+                                    }
+                                }
                             }
 
                             // Upsert image if we have data
@@ -108,6 +121,11 @@ namespace TechagroApiSync.Shared.Services
                                 catch (Exception ex)
                                 {
                                     Log.Error(ex, "Failed to update image for {Code} from Url: {Url}", product.Code, img.Url);
+                                }
+                                finally
+                                {
+                                    // Clear image data from memory
+                                    img.Data = null;
                                 }
                             }
                         }

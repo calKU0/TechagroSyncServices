@@ -12,19 +12,18 @@ namespace IntercarsSyncService.Helpers
 {
     public static class CsvHelperUtility
     {
-        public static List<T> ParseCsvFromZip<T>(byte[] zipBytes)
+        public static IEnumerable<T> ParseCsvFromZipStream<T>(Stream zipStream)
         {
-            using (var zipStream = new MemoryStream(zipBytes))
-            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: false))
             {
                 var csvEntry = archive.Entries
                     .FirstOrDefault(e => e.FullName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase));
 
                 if (csvEntry == null)
-                    return new List<T>();
+                    yield break;
 
                 using (var csvStream = csvEntry.Open())
-                using (var reader = new StreamReader(csvStream, Encoding.UTF8))
+                using (var reader = new StreamReader(csvStream, Encoding.UTF8, true, 1024 * 8))
                 {
                     var config = new CsvConfiguration(new CultureInfo("pl-PL"))
                     {
@@ -32,13 +31,16 @@ namespace IntercarsSyncService.Helpers
                         HasHeaderRecord = true,
                         MissingFieldFound = null,
                         BadDataFound = null,
-                        PrepareHeaderForMatch = args => args.Header?.Replace("_", "")?.ToLowerInvariant()
+                        PrepareHeaderForMatch = args =>
+                            args.Header?.Replace("_", "").ToLowerInvariant()
                     };
 
                     using (var csv = new CsvReader(reader, config))
                     {
-                        var records = csv.GetRecords<T>().ToList();
-                        return records;
+                        foreach (var record in csv.GetRecords<T>())
+                        {
+                            yield return record; // streams one row at a time
+                        }
                     }
                 }
             }
