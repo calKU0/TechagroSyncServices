@@ -9,6 +9,7 @@ using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
+using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace TechagroApiSync.Shared.Services
 {

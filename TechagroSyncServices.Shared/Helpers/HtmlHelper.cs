@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using TechagroApiSync.Shared.DTOs;
+using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace TechagroSyncServices.Shared.Helpers
 {
@@ -9,13 +12,53 @@ namespace TechagroSyncServices.Shared.Helpers
     {
         public static string BuildNewProductsEmailHtml(IReadOnlyList<ProductDto> products, string serviceName)
         {
+            string GetImageSrc(ImageDto img)
+            {
+                if (!string.IsNullOrEmpty(img.Url))
+                    return img.Url;
+
+                if (img.Data != null && img.Data.Length > 0)
+                {
+                    var base64 = Convert.ToBase64String(img.Data);
+
+                    return $"data:image/jpeg;base64,{base64}";
+                }
+
+                return null;
+            }
+
             string productBlocks = string.Join("", products.Select(product =>
             {
-                var imagesHtml = string.Join("", product.Images.Where(i => !string.IsNullOrEmpty(i.Url)).Select(img =>
-                    $@"<img src='{img.Url}'
-                    alt='Zdjęcie'
-                    style='max-width:110px; max-height:110px; margin:4px; border-radius:6px; border:1px solid #ddd;' />"
-                ));
+                var imagesHtml = string.Join("",
+                    product.Images
+                        .Select(img =>
+                        {
+                            var src = GetImageSrc(img);
+                            if (string.IsNullOrEmpty(src))
+                                return "";
+
+                            return $@"
+                                <img src='{src}'
+                                 alt='Zdjęcie'
+                                 style='max-width:110px; max-height:110px; margin:4px; border-radius:6px; border:1px solid #ddd;' />";
+                        })
+                );
+
+                var tradingCodeRow = string.IsNullOrWhiteSpace(product.TradingCode)
+                    ? ""
+                    : $@"
+                        <tr>
+                            <td style='padding:6px; font-weight:bold;'>Nr. Handlowy:</td>
+                            <td style='padding:6px;'>{product.TradingCode}</td>
+                        </tr>";
+
+                var nameRow = string.IsNullOrWhiteSpace(product.Name) || product.IntegrationCompany == IntegrationCompany.INTERCARS
+                    ? ""
+                    : $@"
+                        <tr>
+                            <td style='padding:6px; font-weight:bold;'>Nazwa:</td>
+                            <td style='padding:6px;'>{product.Name}</td>
+                        </tr>";
 
                 return $@"
                     <div style='border:1px solid #e1e1e1; padding:15px; border-radius:8px; margin-bottom:20px; background-color:#fafafa;'>
@@ -23,10 +66,8 @@ namespace TechagroSyncServices.Shared.Helpers
                         <p style='margin:6px 0 12px 0; color:#555;'>{product.Brand}</p>
 
                         <table style='width:100%; border-collapse:collapse; font-size:14px;'>
-                            <tr>
-                                <td style='padding:6px; font-weight:bold;'>Nr. Handlowy:</td>
-                                <td style='padding:6px;'>{product.TradingCode}</td>
-                            </tr>
+                            {nameRow}
+                            {tradingCodeRow}
                             <tr>
                                 <td style='padding:6px; font-weight:bold;'>Dostępność:</td>
                                 <td style='padding:6px;'>{product.Quantity} szt.</td>

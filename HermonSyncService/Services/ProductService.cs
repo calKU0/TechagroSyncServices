@@ -172,7 +172,8 @@ namespace HermonSyncService.Services
                     _defaultMargin,
                     _marginRanges);
 
-                var productCode = ftpProduct.Code + "HR";
+                string code = ftpProduct.Code + "HR";
+                string productCode = code.Length > 20 ? code.Substring(0, 20) : code;
 
                 return new ProductDto
                 {

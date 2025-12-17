@@ -263,7 +263,7 @@ namespace IntercarsSyncService.Services
             {
                 var dto = new ProductDto
                 {
-                    Code = p.TowKod,
+                    Code = p.TowKod.Length > 20 ? p.TowKod.Substring(0, 20) : p.TowKod,
                     TradingCode = p.IcIndex,
                     Name = $"{p.Description} {p.IcIndex}",
                     Ean = p.Barcodes?.Split(',').FirstOrDefault(),

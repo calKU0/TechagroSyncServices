@@ -2,9 +2,13 @@
 using AgroramiSyncService.Services;
 using Serilog;
 using System;
+using System.IO;
+using System.Linq;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
+using TechagroApiSync.Shared.Enums;
+using TechagroApiSync.Shared.Helpers;
 using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Logging;
@@ -20,7 +24,11 @@ namespace AgroramiSyncService
         // Services
         private readonly ApiService _apiService;
 
+        private readonly IProductSyncService _productSyncService;
+        private readonly IEmailService _emailService;
+
         private Timer _timer;
+        private DateTime _lastSnapshotSave = DateTime.MinValue;
 
         public AgroramiSyncService()
         {
@@ -35,9 +43,9 @@ namespace AgroramiSyncService
             var productRepository = new ProductRepository(connectionString);
 
             // Services
-            var productSyncService = new ProductSyncService(productRepository);
-            var emailService = new EmailService(AppSettingsLoader.LoadSmtpSettings());
-            _apiService = new ApiService(productSyncService, emailService);
+            _productSyncService = new ProductSyncService(productRepository);
+            _emailService = new EmailService(AppSettingsLoader.LoadSmtpSettings());
+            _apiService = new ApiService();
 
             InitializeComponent();
         }
@@ -64,8 +72,64 @@ namespace AgroramiSyncService
         {
             try
             {
-                // 1. Getting default info about products
-                await _apiService.SyncProducts();
+                // 1. Getting info about products
+                var products = await _apiService.SyncProducts();
+
+                if (_lastSnapshotSave.Date < DateTime.Today && DateTime.Now.Hour >= 6)
+                {
+                    // Step 2: Detect newly added products
+                    var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                    var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
+
+                    if (newProducts.Any())
+                    {
+                        var to = AppSettingsLoader.GetEmailsToNotify();
+
+                        await BatchEmailNotifier.SendAsync(
+                            newProducts,
+                            100,
+                            batch => $"Nowe produkty ({newProducts.Count})",
+                            batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Agrorami"),
+                            recipients: to,
+                            from: "Agrorami Sync Service",
+                            emailService: _emailService);
+                    }
+                    else
+                    {
+                        Log.Information("No new products detected.");
+                    }
+
+                    // Step 3: Export to JSON
+                    await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
+                    Log.Information("JSON file created at {Path}", snapshotPath);
+                    _lastSnapshotSave = DateTime.Today;
+                }
+
+                // Step 4: Filter by import list
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+
+                var allowedCodes = FileUtils.ReadImportList(importFilePath);
+
+                if (!allowedCodes.Any())
+                {
+                    Log.Warning("Import file is empty or missing. Aborting import");
+                    return;
+                }
+
+                products = ImportFilterHelper.FilterByAllowedCodes(products, allowedCodes, p => p.Code, out var missingCodes).ToList();
+
+                if (missingCodes.Any())
+                {
+                    Log.Warning("Missing {Count} product codes", missingCodes.Count);
+                    foreach (var code in missingCodes)
+                        Log.Warning("Missing: {Code}", code);
+                }
+
+                // Step 5: Delete products not in the current import list
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AGRORAMI);
+
+                // Step 6: Sync current products
+                await _productSyncService.SyncToDatabaseAsync(products);
             }
             catch (Exception ex)
             {

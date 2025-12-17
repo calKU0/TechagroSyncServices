@@ -86,6 +86,7 @@ namespace HermonSyncService
                 if (_lastProductDetailsSyncDate.Date < DateTime.Today)
                 {
                     images = _productService.SyncImagesFromFtp();
+                    _lastProductDetailsSyncDate = DateTime.Today;
                 }
 
                 // 3. Getting detailed info about products from API
@@ -94,31 +95,34 @@ namespace HermonSyncService
                 // 4. Building full product data
                 var products = await _productService.BuildProductDtos(basicProductData, detailedProductData, images);
 
-                // Step 5.1: Detect newly added products
-                var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
-                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
-
-                if (newProducts.Any())
+                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
-                    var to = AppSettingsLoader.GetEmailsToNotify();
+                    // Step 5.1: Detect newly added products
+                    var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                    var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
 
-                    await BatchEmailNotifier.SendAsync(
-                        newProducts,
-                        100,
-                        batch => $"Nowe produkty ({newProducts.Count})",
-                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Hermon"),
-                        recipients: to,
-                        from: "Hermon Sync Service",
-                        emailService: _emailService);
-                }
-                else
-                {
-                    Log.Information("No new products detected.");
-                }
+                    if (newProducts.Any())
+                    {
+                        var to = AppSettingsLoader.GetEmailsToNotify();
 
-                // Step 6: Export to JSON
-                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
-                Log.Information("JSON file created at {Path}", snapshotPath);
+                        await BatchEmailNotifier.SendAsync(
+                            newProducts,
+                            100,
+                            batch => $"Nowe produkty ({newProducts.Count})",
+                            batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Hermon"),
+                            recipients: to,
+                            from: "Hermon Sync Service",
+                            emailService: _emailService);
+                    }
+                    else
+                    {
+                        Log.Information("No new products detected.");
+                    }
+
+                    // Step 6: Export to JSON
+                    await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
+                    Log.Information("JSON file created at {Path}", snapshotPath);
+                }
 
                 // Step 7: Filter by import list
                 var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");

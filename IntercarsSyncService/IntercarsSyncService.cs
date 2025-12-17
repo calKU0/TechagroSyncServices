@@ -2,6 +2,7 @@
 using IntercarsSyncService.Services;
 using Serilog;
 using System;
+using System.Runtime;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,6 +83,13 @@ namespace IntercarsSyncService
             }
             finally
             {
+                GCSettings.LargeObjectHeapCompactionMode =
+                GCLargeObjectHeapCompactionMode.CompactOnce;
+
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
                 DateTime nextRun = DateTime.Now.AddHours(_interval.TotalHours);
                 _timer.Change(_interval, Timeout.InfiniteTimeSpan);
 

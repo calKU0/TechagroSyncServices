@@ -20,22 +20,19 @@ namespace AgroramiSyncService.Services
     public class ApiService
     {
         private readonly AgroramiApiSettings _apiSettings;
-        private readonly IEmailService _emailService;
-        private readonly IProductSyncService _productSyncService;
         private readonly GraphQLClient _client;
         private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
-        public ApiService(IProductSyncService productSyncService, IEmailService emailService)
+        public ApiService()
         {
-            _productSyncService = productSyncService;
-            _client = new GraphQLClient(_apiSettings.BaseUrl);
             _apiSettings = AppSettingsLoader.LoadApiSettings();
             _defaultMargin = AppSettingsLoader.GetDefaultMargin();
             _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _client = new GraphQLClient(_apiSettings.BaseUrl);
         }
 
-        public async Task SyncProducts()
+        public async Task<List<ProductDto>> SyncProducts()
         {
             try
             {
@@ -47,13 +44,14 @@ namespace AgroramiSyncService.Services
                 int currentPage = 1;
                 int maxRetries = 3;
                 int currentTry = 0;
+                int pageSize = 500;
 
                 // Step 2: Download products with pagination
                 while (true && currentTry <= maxRetries)
                 {
                     try
                     {
-                        var pageProducts = await GetProductsAsync(token, currentPage);
+                        var pageProducts = await GetProductsAsync(token, currentPage, pageSize);
 
                         if (pageProducts == null || pageProducts.Count == 0)
                         {
@@ -79,7 +77,7 @@ namespace AgroramiSyncService.Services
                 if (allProducts.Count == 0)
                 {
                     Log.Warning("No products found.");
-                    return;
+                    return null;
                 }
 
                 // Step 3: Download attributes
@@ -90,65 +88,14 @@ namespace AgroramiSyncService.Services
                 MapAttributeLabels(allProducts, attributes);
 
                 var products = await BuildProductDtos(allProducts);
-                Log.Information("Mapping completed. Syncing {Count} products to database...", allProducts.Count);
+                Log.Information("Mapping completed. Fetched {Count} products.", allProducts.Count);
 
-                // Step 5.1: Detect newly added products
-                var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
-                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
-
-                if (newProducts.Any())
-                {
-                    var to = AppSettingsLoader.GetEmailsToNotify();
-
-                    await BatchEmailNotifier.SendAsync(
-                        newProducts,
-                        100,
-                        batch => $"Nowe produkty ({newProducts.Count})",
-                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Agrorami"),
-                        recipients: to,
-                        from: "Agrorami Sync Service",
-                        emailService: _emailService);
-                }
-                else
-                {
-                    Log.Information("No new products detected.");
-                }
-
-                // Step 6: Export to JSON
-                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
-                Log.Information("JSON file created at {Path}", snapshotPath);
-
-                // Step 7: Filter by import list
-                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
-
-                var allowedCodes = FileUtils.ReadImportList(importFilePath);
-
-                if (!allowedCodes.Any())
-                {
-                    Log.Warning("Import file is empty or missing. Aborting import");
-                    return;
-                }
-
-                products = ImportFilterHelper.FilterByAllowedCodes(products, allowedCodes, p => p.Code, out var missingCodes).ToList();
-
-                if (missingCodes.Any())
-                {
-                    Log.Warning("Missing {Count} product codes", missingCodes.Count);
-                    foreach (var code in missingCodes)
-                        Log.Warning("Missing: {Code}", code);
-                }
-
-                // Step 8.1: Delete products not in the current import list
-                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AGRORAMI);
-
-                // Step 8.2: Sync current products
-                await _productSyncService.SyncToDatabaseAsync(products);
-
-                Log.Information("Product synchronization completed successfully.");
+                return products;
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during product synchronization");
+                return null;
             }
         }
 
@@ -168,11 +115,11 @@ namespace AgroramiSyncService.Services
             return result["generateCustomerToken"].Token;
         }
 
-        private async Task<List<ProductsResponse>> GetProductsAsync(string token, int currentPage)
+        private async Task<List<ProductsResponse>> GetProductsAsync(string token, int currentPage, int pageSize)
         {
             var query = $@"
                 query Products {{
-                    products(filter: {{ category_id: {{ eq: ""4"" }} }}, pageSize: 1000, currentPage: {currentPage}) {{
+                    products(filter: {{ category_id: {{ eq: ""4"" }} }}, pageSize: {pageSize}, currentPage: {currentPage}) {{
                         items {{
                             id
                             sku
@@ -288,7 +235,8 @@ namespace AgroramiSyncService.Services
             foreach (var product in products)
             {
                 decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
-                product.Sku = product.Sku + "AR";
+                string code = product.Sku + "AR";
+                product.Sku = code.Length > 20 ? code.Substring(0, 20) : code;
                 product.Name = product.Name + " " + product.CatalogNumber;
 
                 var descriptionText = string.Empty;
