@@ -17,20 +17,14 @@ namespace RolmarSyncService.Services
     public class ApiService
     {
         private readonly RolmarApiSettings _apiSettings;
-        private readonly IProductRepository _productRepo;
         private readonly HttpClient _httpClient;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public ApiService(IProductRepository productRepo)
+        public ApiService(HttpClient client)
         {
-            _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-
-            _httpClient = new HttpClient
-            {
-                BaseAddress = new Uri(_apiSettings.BaseUrl)
-            };
-
+            _httpClient = client;
+            _httpClient.BaseAddress = new Uri(_apiSettings.BaseUrl);
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
@@ -38,58 +32,25 @@ namespace RolmarSyncService.Services
             };
         }
 
-        public async Task SyncProducts()
+        public async Task<List<Product>> FetchProducts()
         {
-            try
-            {
-                Log.Information("Starting products synchronization...");
+            var productsUrl = $"v1/product/products.php?m=getProducts&lang=pl";
+            var products = await GetApiDataAsync<List<ProductsResponse>, Product>(productsUrl);
+            return products;
+        }
 
-                var productsUrl = $"v1/product/products.php?m=getProducts&lang=pl";
-                Log.Information($"Getting products from {productsUrl}");
+        public async Task<List<StockItem>> FetchProductStock()
+        {
+            var stockUrl = $"v1/stock/stock.php?m=getStock&lang=pl";
+            var stock = await GetApiDataAsync<List<StockResponse>, StockItem>(stockUrl);
+            return stock;
+        }
 
-                var products = await GetApiDataAsync<List<ProductsResponse>, Product>(productsUrl);
-                if (!products.Any())
-                {
-                    Log.Warning("No products found. Aborting sync.");
-                    return;
-                }
-
-                var stockUrl = $"v1/stock/stock.php?m=getStock&lang=pl";
-                Log.Information($"Getting stock from {stockUrl}");
-                var stock = await GetApiDataAsync<List<StockResponse>, StockItem>(stockUrl);
-                if (!stock.Any())
-                {
-                    Log.Warning("No stock data found. Aborting sync.");
-                    return;
-                }
-
-                var images = new List<PhotoItem>();
-                //if (DateTime.Now.Day % 5 == 0)
-                //{
-                //    var imagesUrl = $"v1/photo/photo.php?m=getPhotos&lang=pl";
-                //    Log.Information($"Getting images from {imagesUrl}");
-
-                //    images = await GetApiDataAsync<List<PhotosResponse>, PhotoItem>(imagesUrl);
-                //    if (!images.Any())
-                //    {
-                //        Log.Warning("No images found. Aborting sync.");
-                //        return;
-                //    }
-                //}
-
-                var fullProducts = BuildFullProductDtos(products, stock, images);
-
-                Log.Information("Merged {Count} products", fullProducts.Count);
-
-                var productSync = new ProductSyncService(_productRepo);
-                await productSync.SyncToDatabaseAsync(fullProducts);
-
-                Log.Information("Product synchronization completed successfully.");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error during products synchronization");
-            }
+        public async Task<List<PhotoItem>> FetchProductImages()
+        {
+            var imagesUrl = $"v1/photo/photo.php?m=getPhotos&lang=pl";
+            var images = await GetApiDataAsync<List<PhotosResponse>, PhotoItem>(imagesUrl);
+            return images;
         }
 
         // ===========================================================
@@ -152,76 +113,6 @@ namespace RolmarSyncService.Services
                 Log.Error(ex, "Unknown error calling {Url}", url);
                 return new List<TItem>();
             }
-        }
-
-        // ===========================================================
-        // MAPPING
-        // ===========================================================
-
-        private List<FullProductDto> BuildFullProductDtos(List<Product> products, List<StockItem> stock, List<PhotoItem> images)
-        {
-            var stockDict = stock.ToDictionary(s => s.Index, s => s);
-            var imageDict = images.GroupBy(i => i.Index)
-                                  .ToDictionary(g => g.Key, g => g.ToList());
-
-            var result = new List<FullProductDto>();
-
-            foreach (var p in products)
-            {
-                // Safe conversions with logging
-                int id = SafeConvertToInt(p.Id, "Id", p.ProductIndex);
-                decimal weight = SafeConvertToDecimal(p.Weight, "Weight", p.ProductIndex);
-                decimal package = SafeConvertToDecimal(p.ErpPackage, "ErpPackage", p.ProductIndex) == 0 ? 1 : SafeConvertToDecimal(p.ErpPackage, "ErpPackage", p.ProductIndex);
-                decimal price = SafeConvertToDecimal(p.Price, "Price", p.ProductIndex);
-                var dto = new FullProductDto
-                {
-                    Id = id,
-                    ProductIndex = p.ProductIndex,
-                    Name = p.Name,
-                    Description = p.Description,
-                    Brand = p.Brand,
-                    Weight = weight,
-                    Specifications = p.Specifications,
-                    Ean = p.Ean,
-                    Cn = p.Cn,
-                    Price = price / package,
-                    Stock = stockDict.TryGetValue(p.ProductIndex, out var s) ? s.Stock : 0,
-                    Unit = stockDict.TryGetValue(p.ProductIndex, out var s2) ? s2.Unit : p.Unit,
-                    Images = imageDict.TryGetValue(p.ProductIndex, out var imgs) ? imgs : new List<PhotoItem>()
-                };
-
-                result.Add(dto);
-            }
-
-            return result;
-        }
-
-        private int SafeConvertToInt(string value, string fieldName, string productIndex)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return 0;
-
-            if (int.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out int result))
-                return result;
-
-            Log.Warning("Invalid int conversion for field '{Field}' in product '{ProductIndex}'. Value: '{Value}'", fieldName, productIndex, value);
-            return 0;
-        }
-
-        private decimal SafeConvertToDecimal(string value, string fieldName, string productIndex)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return 0m;
-
-            // Normalize decimal separator
-            value = value.Replace(',', '.');
-
-            if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
-                return result;
-
-            Log.Warning("Invalid decimal conversion for field '{Field}' in product '{ProductIndex}'. Value: '{Value}'", fieldName, productIndex, value);
-
-            return 0m;
         }
     }
 }

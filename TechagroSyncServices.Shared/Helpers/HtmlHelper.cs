@@ -18,19 +18,6 @@ namespace TechagroSyncServices.Shared.Helpers
                 if (!string.IsNullOrEmpty(img.Url))
                     return img.Url;
 
-                if (!string.IsNullOrEmpty(img.Path))
-                {
-                    var data = File.ReadAllBytes(img.Path);
-                    img.Data = data;
-                }
-
-                if (img.Data != null && img.Data.Length > 0)
-                {
-                    var base64 = Convert.ToBase64String(img.Data);
-
-                    return $"data:image/jpeg;base64,{base64}";
-                }
-
                 return null;
             }
 
