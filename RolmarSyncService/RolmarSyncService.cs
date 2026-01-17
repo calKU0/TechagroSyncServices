@@ -10,7 +10,6 @@ using System.Net.Http;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
-using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
 using TechagroApiSync.Shared.Helpers;
 using TechagroApiSync.Shared.Services;

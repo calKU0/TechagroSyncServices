@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace TechagroSyncServices.Shared.Helpers
 {

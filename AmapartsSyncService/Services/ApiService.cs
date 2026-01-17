@@ -6,21 +6,11 @@ using CsvHelper.Configuration;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using TechagroApiSync.Shared.DTOs;
-using TechagroApiSync.Shared.Enums;
-using TechagroApiSync.Shared.Helpers;
-using TechagroApiSync.Shared.Services;
-using TechagroSyncServices.Shared.DTOs;
-using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Repositories;
-using TechagroSyncServices.Shared.Services;
 
 namespace AmapartsSyncService.Services
 {

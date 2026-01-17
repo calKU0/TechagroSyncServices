@@ -111,9 +111,7 @@ namespace AmapartsSyncService
                 Log.Information($"Building product data...");
                 var fullProducts = products.Select(p => BuildHelper.BuildProductDto(p, parametersGrouped, defaultMargin, marginRanges)).ToList();
 
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today
-                    //&& DateTime.Now.Hour >= 6
-                    )
+                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
                     // Step 5.1: Detect newly added products
                     Log.Information($"Detecting new products...");
@@ -167,10 +165,10 @@ namespace AmapartsSyncService
                 }
 
                 // Step 8.1: Delete products not in the current import list
-                //await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AMA);
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AMA);
 
                 // Step 8.2: Sync current products
-                //await _productSyncService.SyncToDatabaseAsync(fullProducts);
+                await _productSyncService.SyncToDatabaseAsync(fullProducts);
             }
             catch (Exception ex)
             {
@@ -182,7 +180,6 @@ namespace AmapartsSyncService
                 _timer.Change(_interval, Timeout.InfiniteTimeSpan);
 
                 Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
-                _lastProductDetailsSyncDate = DateTime.Today;
             }
         }
     }

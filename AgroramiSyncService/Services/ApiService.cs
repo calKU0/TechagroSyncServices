@@ -4,16 +4,13 @@ using AgroramiSyncService.Settings;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
 using TechagroApiSync.Shared.Helpers;
-using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Services;
 
 namespace AgroramiSyncService.Services
 {
