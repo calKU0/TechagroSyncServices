@@ -86,7 +86,6 @@ namespace HermonSyncService
                 if (_lastProductDetailsSyncDate.Date < DateTime.Today)
                 {
                     images = _productService.SyncImagesFromFtp();
-                    _lastProductDetailsSyncDate = DateTime.Today;
                 }
 
                 // 3. Getting detailed info about products from API
@@ -122,6 +121,7 @@ namespace HermonSyncService
                     // Step 6: Export to JSON
                     await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
                     Log.Information("JSON file created at {Path}", snapshotPath);
+                    _lastProductDetailsSyncDate = DateTime.Today;
                 }
 
                 // Step 7: Filter by import list
