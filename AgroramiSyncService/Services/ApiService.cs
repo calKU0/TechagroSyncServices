@@ -129,6 +129,18 @@ namespace AgroramiSyncService.Services
                             ... on SimpleProduct {{
                                 weight
                             }}
+                            categories {{
+                                id
+                                name
+                                url_key
+                                url_path
+                                level
+                                breadcrumbs {{
+                                    category_id
+                                    category_name
+                                    category_url_path
+                                }}
+                            }}
                             stock_status
                             stock_availability {{
                                 in_stock
@@ -267,6 +279,7 @@ namespace AgroramiSyncService.Services
                     IntegrationCompany = IntegrationCompany.AGRORAMI,
                     Description = descriptionText,
                     Images = await BuildProductImagesAsync(product.Sku, product.MediaGallery),
+                    CategoriesString = BuildLeafCategoriesString(product.Categories)
                 };
 
                 result.Add(dto);
@@ -289,6 +302,48 @@ namespace AgroramiSyncService.Services
             }
 
             return result;
+        }
+
+        private static List<string> BuildFullCategoryPaths(List<Categories> categories)
+        {
+            var paths = new List<string>();
+
+            foreach (var category in categories)
+            {
+                if (category.Level <= 1)
+                    continue;
+
+                var parts = new List<string>();
+
+                if (category.BreadCrumbs != null)
+                {
+                    parts.AddRange(category.BreadCrumbs.Select(b => b.CategoryName));
+                }
+
+                parts.Add(category.Name);
+
+                paths.Add(string.Join(" > ", parts));
+            }
+
+            return paths;
+        }
+
+        private static string BuildLeafCategoriesString(List<Categories> categories)
+        {
+            if (categories == null || categories.Count == 0)
+                return string.Empty;
+
+            var allPaths = BuildFullCategoryPaths(categories);
+
+            var leafPaths = allPaths
+                .Where(path =>
+                    !allPaths.Any(other =>
+                        other != path &&
+                        other.StartsWith(path + " >")))
+                .Distinct()
+                .ToList();
+
+            return string.Join(",", leafPaths);
         }
     }
 }

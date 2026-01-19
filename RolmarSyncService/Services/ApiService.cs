@@ -63,7 +63,17 @@ namespace RolmarSyncService.Services
                 {
                     data = new[]
                     {
-                        new { wsKey = _apiSettings.ApiKey }
+                        new
+                        {
+                            wsKey = _apiSettings.ApiKey,
+                            param = new[]
+                            {
+                                new
+                                {
+                                    categorySeparator = ">"
+                                }
+                            }
+                        }
                     }
                 };
 

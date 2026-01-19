@@ -16,7 +16,7 @@ BEGIN
     INSERT INTO @ToDelete (Indeks_katalogowy)
     SELECT Indeks_katalogowy
     FROM dbo.Artykul WITH (NOLOCK)
-    WHERE Uwagi LIKE @IntegrationCompany + '%'
+    WHERE Pole1 LIKE @IntegrationCompany + '%'
       AND Indeks_katalogowy NOT IN (SELECT Code FROM @AllowedCodes);
 
     DECLARE @Index VARCHAR(100);

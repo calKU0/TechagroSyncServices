@@ -52,6 +52,9 @@ namespace AgroramiSyncService.DTOs
 
         [JsonPropertyName("media_gallery")]
         public List<MediaGalleryItem> MediaGallery { get; set; }
+
+        [JsonPropertyName("categories")]
+        public List<Categories> Categories { get; set; }
     }
 
     public class HtmlContent
@@ -91,6 +94,39 @@ namespace AgroramiSyncService.DTOs
 
         [JsonPropertyName("currency")]
         public string Currency { get; set; }
+    }
+
+    public class Categories
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("url_key")]
+        public string UrlKey { get; set; }
+
+        [JsonPropertyName("url_path")]
+        public string UrlPath { get; set; }
+
+        [JsonPropertyName("level")]
+        public int Level { get; set; }
+
+        [JsonPropertyName("breadcrumbs")]
+        public List<BreadCrumb> BreadCrumbs { get; set; }
+    }
+
+    public class BreadCrumb
+    {
+        [JsonPropertyName("category_id")]
+        public int CategoryId { get; set; }
+
+        [JsonPropertyName("category_name")]
+        public string CategoryName { get; set; }
+
+        [JsonPropertyName("category_url_path")]
+        public string CategoryUrlPath { get; set; }
     }
 
     public class MediaGalleryItem

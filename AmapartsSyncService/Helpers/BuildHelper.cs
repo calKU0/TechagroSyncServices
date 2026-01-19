@@ -69,7 +69,7 @@ namespace AmapartsSyncService.Helpers
 
                     return new ImageDto
                     {
-                        Name = $"{p.ProductCode}_{imageId}",
+                        Name = imageId,
                         Url = url
                     };
                 })

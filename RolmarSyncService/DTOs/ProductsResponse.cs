@@ -54,6 +54,10 @@ namespace RolmarSyncService.DTOs
         [JsonConverter(typeof(FlexibleListConverter<Specification>))]
         public List<Specification> Specifications { get; set; }
 
+        [JsonPropertyName("categories")]
+        [JsonConverter(typeof(FlexibleListConverter<string>))]
+        public List<string> Categories { get; set; }
+
         [JsonPropertyName("retailPrice")]
         public string RetailPrice { get; set; }
 

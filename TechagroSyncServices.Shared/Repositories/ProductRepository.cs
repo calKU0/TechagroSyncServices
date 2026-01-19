@@ -40,6 +40,7 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.AddWithValue("@WAGA", productDto.Weight);
                     cmd.Parameters.AddWithValue("@PRODUCENT", productDto.Brand ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@ID_PRODUCENTA", productDto.Id);
+                    cmd.Parameters.AddWithValue("@CATEGORIES", productDto.CategoriesString ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@INTEGRATION_COMPANY", productDto.IntegrationCompany.ToString());
                     cmd.Parameters.AddWithValue("@UNIT", productDto.Unit ?? (object)DBNull.Value);
 

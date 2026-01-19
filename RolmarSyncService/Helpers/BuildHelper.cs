@@ -58,6 +58,11 @@ namespace RolmarSyncService.Helpers
                     GrossBuyPrice = price * 1.23m,
                     NetSellPrice = price * ((applicableMargin / 100m) + 1),
                     GrossSellPrice = price * 1.23m * ((applicableMargin / 100m) + 1),
+                    CategoriesString = p.Categories != null
+                    ? string.Join(",",
+                        p.Categories.Select(c =>
+                            c.Replace(">", " > ").Trim()))
+                    : "",
                     Vat = 23,
                     Unit = "szt.",
                     IntegrationCompany = IntegrationCompany.ROLMAR,
