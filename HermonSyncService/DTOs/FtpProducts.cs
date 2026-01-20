@@ -18,7 +18,7 @@
         public string CN { get; set; }
 
         [CsvHelper.Configuration.Attributes.Name("Masa Netto")]
-        public decimal Weight { get; set; }
+        public decimal? Weight { get; set; }
 
         [CsvHelper.Configuration.Attributes.Name("Uwagi do towaru")]
         public string Description { get; set; }
