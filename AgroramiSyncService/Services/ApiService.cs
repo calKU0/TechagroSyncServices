@@ -44,7 +44,8 @@ namespace AgroramiSyncService.Services
                 int pageSize = 500;
 
                 // Step 2: Download products with pagination
-                while (true && currentTry <= maxRetries)
+                while (true && currentTry <= maxRetries
+                    )
                 {
                     try
                     {
@@ -121,6 +122,8 @@ namespace AgroramiSyncService.Services
                             id
                             sku
                             name
+                            standard_external_shipping_price
+                            express_external_shipping_price
                             catalog_number
                             description {{ html }}
                             short_description {{ html }}
@@ -245,6 +248,29 @@ namespace AgroramiSyncService.Services
             {
                 decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
                 string code = product.Sku + "AR";
+                decimal marginFactor = (applicableMargin / 100m) + 1m;
+
+                decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m)
+                    ? product.StandardPrice
+                    : (decimal?)null;
+                decimal? expressPrice = (product.ExpressPrice.HasValue && product.ExpressPrice.Value != 0m)
+                    ? product.ExpressPrice
+                    : (decimal?)null;
+
+                decimal baseStandardPrice = standardPrice ?? product.PriceRange.MinimumPrice.IndividualPrice.Net;
+                bool hasExpress = expressPrice.HasValue;
+
+                decimal baseBuyPrice = hasExpress ? expressPrice.Value : baseStandardPrice;
+                decimal netBuyPrice = baseBuyPrice;
+                decimal grossBuyPrice = baseBuyPrice * 1.23m;
+
+                decimal priceBBase = hasExpress ? expressPrice.Value : baseStandardPrice;
+                decimal netSellPriceB = priceBBase * marginFactor;
+                decimal grossSellPriceB = netSellPriceB * 1.23m;
+
+                decimal? netSellPriceC = hasExpress ? (decimal?)(baseStandardPrice * marginFactor) : null;
+                decimal? grossSellPriceC = netSellPriceC.HasValue ? netSellPriceC.Value * 1.23m : (decimal?)null;
+
                 product.Sku = code.Length > 20 ? code.Substring(0, 20) : code;
                 product.Name = product.Name + " " + product.CatalogNumber;
 
@@ -268,10 +294,12 @@ namespace AgroramiSyncService.Services
                     Ean = product.Ean,
                     Name = product.Name,
                     Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
-                    NetBuyPrice = product.PriceRange.MinimumPrice.IndividualPrice.Net,
-                    GrossBuyPrice = product.PriceRange.MinimumPrice.IndividualPrice.Gross,
-                    NetSellPrice = product.PriceRange.MinimumPrice.IndividualPrice.Net * ((applicableMargin / 100m) + 1),
-                    GrossSellPrice = product.PriceRange.MinimumPrice.IndividualPrice.Gross * ((applicableMargin / 100m) + 1),
+                    NetBuyPrice = netBuyPrice,
+                    GrossBuyPrice = grossBuyPrice,
+                    NetSellPriceB = netSellPriceB,
+                    GrossSellPriceB = grossSellPriceB,
+                    NetSellPriceC = netSellPriceC,
+                    GrossSellPriceC = grossSellPriceC,
                     Vat = 23,
                     Weight = product.Weight ?? 0,
                     Brand = product.ManufacturerLabel,
@@ -343,7 +371,7 @@ namespace AgroramiSyncService.Services
                 .Distinct()
                 .ToList();
 
-            return string.Join(",", leafPaths);
+            return string.Join("|", leafPaths);
         }
     }
 }

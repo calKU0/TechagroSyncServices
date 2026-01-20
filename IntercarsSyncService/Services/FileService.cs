@@ -324,8 +324,8 @@ namespace IntercarsSyncService.Services
                     dto.Quantity = stock.TotalAvailability;
                     dto.NetBuyPrice = stock.WholesalePrice;
                     dto.GrossBuyPrice = stock.WholesalePrice * 1.23m;
-                    dto.NetSellPrice = stock.WholesalePrice * ((margin / 100m) + 1);
-                    dto.GrossSellPrice = stock.WholesalePrice * 1.23m * ((margin / 100m) + 1);
+                    dto.NetSellPriceB = stock.WholesalePrice * ((margin / 100m) + 1);
+                    dto.GrossSellPriceB = stock.WholesalePrice * 1.23m * ((margin / 100m) + 1);
                 }
 
                 result.Add(dto);

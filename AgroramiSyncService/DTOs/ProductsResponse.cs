@@ -47,6 +47,12 @@ namespace AgroramiSyncService.DTOs
         [JsonIgnore]
         public string UnitLabel { get; set; }
 
+        [JsonPropertyName("express_external_shipping_price")]
+        public decimal? ExpressPrice { get; set; }
+
+        [JsonPropertyName("standard_external_shipping_price")]
+        public decimal? StandardPrice { get; set; }
+
         [JsonPropertyName("price_range")]
         public PriceRange PriceRange { get; set; }
 

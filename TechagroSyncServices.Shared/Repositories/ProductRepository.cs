@@ -32,8 +32,10 @@ namespace TechagroSyncServices.Shared.Repositories
                     cmd.Parameters.AddWithValue("@INDEKS_HANDLOWY", productDto.TradingCode ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@CENA_ZAKUPU_BRUTTO", productDto.GrossBuyPrice);
                     cmd.Parameters.AddWithValue("@CENA_ZAKUPU_NETTO", productDto.NetBuyPrice);
-                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO", productDto.GrossSellPrice);
-                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_NETTO", productDto.NetSellPrice);
+                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO", productDto.GrossSellPriceB);
+                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_NETTO", productDto.NetSellPriceB);
+                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_BRUTTO_C", (object)productDto.GrossSellPriceC ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@CENA_SPRZEDAZY_NETTO_C", (object)productDto.NetSellPriceC ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@VAT_ZAKUPU", vatString);
                     cmd.Parameters.AddWithValue("@VAT_SPRZEDAZY", vatString);
                     cmd.Parameters.AddWithValue("@KOD_KRESKOWY", productDto.Ean ?? (object)DBNull.Value);

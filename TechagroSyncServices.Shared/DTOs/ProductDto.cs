@@ -13,8 +13,10 @@ namespace TechagroSyncServices.Shared.DTOs
         public string Ean { get; set; }
         public decimal NetBuyPrice { get; set; }
         public decimal GrossBuyPrice { get; set; }
-        public decimal NetSellPrice { get; set; }
-        public decimal GrossSellPrice { get; set; }
+        public decimal NetSellPriceB { get; set; }
+        public decimal GrossSellPriceB { get; set; }
+        public decimal? NetSellPriceC { get; set; }
+        public decimal? GrossSellPriceC { get; set; }
         public string CategoriesString { get; set; }
         public decimal Vat { get; set; }
         public decimal Quantity { get; set; }
