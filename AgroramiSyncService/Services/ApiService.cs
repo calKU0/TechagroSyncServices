@@ -246,7 +246,6 @@ namespace AgroramiSyncService.Services
             foreach (var product in products)
             {
                 decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
-                string code = product.Sku + "AR";
                 decimal marginFactor = (applicableMargin / 100m) + 1m;
 
                 decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m)
@@ -259,25 +258,20 @@ namespace AgroramiSyncService.Services
                 decimal baseStandardPrice = standardPrice ?? product.PriceRange.MinimumPrice.IndividualPrice.Net;
                 bool hasExpress = expressPrice.HasValue;
 
-                decimal baseBuyPrice = hasExpress ? expressPrice.Value : baseStandardPrice;
-                decimal netBuyPrice = baseBuyPrice;
-                decimal grossBuyPrice = baseBuyPrice * 1.23m;
+                // Kod bazowy + przycięcie do 20 znaków
+                var baseCodeRaw = product.Sku + "AR";
+                var baseCode = baseCodeRaw.Length > 20 ? baseCodeRaw.Substring(0, 20) : baseCodeRaw;
+                var expressCodeRaw = baseCodeRaw + "-EXP";
+                var expressCode = expressCodeRaw.Length > 20 ? expressCodeRaw.Substring(0, 20) : expressCodeRaw;
 
-                decimal priceBBase = hasExpress ? expressPrice.Value : baseStandardPrice;
-                decimal netSellPriceB = priceBBase * marginFactor;
-                decimal grossSellPriceB = netSellPriceB * 1.23m;
-
-                decimal? netSellPriceC = hasExpress ? (decimal?)(baseStandardPrice * marginFactor) : null;
-                decimal? grossSellPriceC = netSellPriceC.HasValue ? netSellPriceC.Value * 1.23m : (decimal?)null;
-
-                product.Sku = code.Length > 20 ? code.Substring(0, 20) : code;
+                product.Sku = baseCode; // zachowujemy dotychczasowe użycie dla obrazów
                 product.Name = product.Name + " " + product.CatalogNumber;
 
                 var descriptionText = string.Empty;
 
                 if (!string.IsNullOrWhiteSpace(product.CatalogNumber))
                 {
-                    descriptionText += ("<p><strong>Numer katalogowy: " + product.CatalogNumber + "</strong></p>");
+                    descriptionText += ("<p><b>Numer katalogowy: " + product.CatalogNumber + "</b></p>");
                 }
 
                 if (!string.IsNullOrWhiteSpace(product.Description.Html))
@@ -285,31 +279,48 @@ namespace AgroramiSyncService.Services
                     descriptionText += (product.Description.Html);
                 }
 
-                // 1. Upsert Product
-                var dto = new ProductDto
+                async Task AddDtoAsync(string codeValue, decimal buyPrice)
                 {
-                    Id = product.Id,
-                    Code = product.Sku,
-                    Ean = product.Ean,
-                    Name = product.Name,
-                    Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
-                    NetBuyPrice = netBuyPrice,
-                    GrossBuyPrice = grossBuyPrice,
-                    NetSellPriceB = netSellPriceB,
-                    GrossSellPriceB = grossSellPriceB,
-                    NetSellPriceC = netSellPriceC,
-                    GrossSellPriceC = grossSellPriceC,
-                    Vat = 23,
-                    Weight = product.Weight ?? 0,
-                    Brand = product.ManufacturerLabel,
-                    Unit = UnitHelpers.MapUnitLabel(product.UnitLabel),
-                    IntegrationCompany = IntegrationCompany.AGRORAMI,
-                    Description = descriptionText,
-                    Images = await BuildProductImagesAsync(product.Sku, product.MediaGallery),
-                    CategoriesString = BuildLeafCategoriesString(product.Categories)
-                };
+                    var netBuyPrice = buyPrice;
+                    var grossBuyPrice = buyPrice * 1.23m;
 
-                result.Add(dto);
+                    var netSellPriceB = buyPrice * marginFactor;
+                    var grossSellPriceB = netSellPriceB * 1.23m;
+
+                    var dto = new ProductDto
+                    {
+                        Id = product.Id,
+                        Code = codeValue,
+                        Ean = product.Ean,
+                        Name = product.Name,
+                        Quantity = product.StockAvailability.InStock == 0 ? 0 : Convert.ToDecimal(product.StockAvailability.InStockReal.Replace("+", "")),
+                        NetBuyPrice = netBuyPrice,
+                        GrossBuyPrice = grossBuyPrice,
+                        NetSellPriceB = netSellPriceB,
+                        GrossSellPriceB = grossSellPriceB,
+                        NetSellPriceC = null,
+                        GrossSellPriceC = null,
+                        Vat = 23,
+                        Weight = product.Weight ?? 0,
+                        Brand = product.ManufacturerLabel,
+                        Unit = UnitHelpers.MapUnitLabel(product.UnitLabel),
+                        IntegrationCompany = IntegrationCompany.AGRORAMI,
+                        Description = descriptionText,
+                        Images = await BuildProductImagesAsync(codeValue, product.MediaGallery),
+                        CategoriesString = BuildLeafCategoriesString(product.Categories)
+                    };
+
+                    result.Add(dto);
+                }
+
+                // Standard DTO
+                await AddDtoAsync(baseCode, baseStandardPrice);
+
+                // Express DTO (tylko gdy obie ceny są dostępne)
+                if (hasExpress && standardPrice.HasValue)
+                {
+                    await AddDtoAsync(expressCode, expressPrice.Value);
+                }
             }
 
             return result;
