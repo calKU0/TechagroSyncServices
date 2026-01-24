@@ -126,10 +126,10 @@ namespace AgroramiSyncService
                 }
 
                 // Step 5: Delete products not in the current import list
-                //await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AGRORAMI);
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.AGRORAMI);
 
                 // Step 6: Sync current products
-                //await _productSyncService.SyncToDatabaseAsync(products);
+                await _productSyncService.SyncToDatabaseAsync(products);
             }
             catch (Exception ex)
             {

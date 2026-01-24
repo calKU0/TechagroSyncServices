@@ -44,8 +44,7 @@ namespace AgroramiSyncService.Services
                 int pageSize = 500;
 
                 // Step 2: Download products with pagination
-                while (true && currentTry <= maxRetries
-                    )
+                while (true && currentTry <= maxRetries)
                 {
                     try
                     {
