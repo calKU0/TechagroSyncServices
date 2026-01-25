@@ -257,6 +257,7 @@ namespace AgroramiSyncService.Services
 
                 decimal baseStandardPrice = standardPrice ?? product.PriceRange.MinimumPrice.IndividualPrice.Net;
                 bool hasExpress = expressPrice.HasValue;
+                hasExpress = hasExpress && expressPrice.Value > 0m;
 
                 // Kod bazowy + przycięcie do 20 znaków
                 var baseCodeRaw = product.Sku + "AR";
