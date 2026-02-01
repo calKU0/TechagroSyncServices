@@ -30,5 +30,17 @@ namespace ServiceManager.Helpers
             _suppress = false;
             OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
         }
+
+        public void RemoveRange(int index, int count)
+        {
+            if (count <= 0 || index < 0 || index >= Items.Count) return;
+            _suppress = true;
+            for (int i = 0; i < count && index < Items.Count; i++)
+            {
+                Items.RemoveAt(index);
+            }
+            _suppress = false;
+            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+        }
     }
 }

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ServiceManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Menedżer serwisów synchronizacji" Height="720" Width="1100" Loaded="Window_Loaded">
+        Title="Menedżer serwisów synchronizacji" Height="720" Width="1100" Loaded="Window_Loaded" Closing="Window_Closing">
     <Window.Resources>
         <!-- Styles -->
         <Style x:Key="NavButtonStyle" TargetType="Button">
@@ -152,6 +152,9 @@
                             <RadioButton x:Name="BtnShowConfig" Style="{StaticResource NavRadioButtonStyle}" GroupName="NavGroup" Click="BtnShowConfig_Click">
                                 Konfiguracja serwisu
                             </RadioButton>
+                            <RadioButton x:Name="BtnShowImports" Style="{StaticResource NavRadioButtonStyle}" GroupName="NavGroup" Click="BtnShowImports_Click" Visibility="Collapsed">
+                                Importowane kody
+                            </RadioButton>
                         </StackPanel>
                     </StackPanel>
 
@@ -286,6 +289,66 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="ConfigStackPanel" />
                     </ScrollViewer>
+                </Grid>
+
+                <Grid x:Name="ImportCodesViewContainer" Visibility="Collapsed" Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Importowane kody" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+
+                    <Border Grid.Row="1" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="8" Background="White" Margin="0,0,0,8">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                <TextBlock Text="Importowany plik:" FontWeight="SemiBold" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="TxtImportFilePath" Text="" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,0,0">
+                                <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBox x:Name="TxtImportSearch" Width="360" TextChanged="TxtImportSearch_TextChanged" Margin="0,0,16,0" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="6" Background="White" Margin="0,0,8,0" SnapsToDevicePixels="True">
+                            <ListBox x:Name="LstImportLines"
+                                     SelectionMode="Extended"
+                                     BorderThickness="0"
+                                     VerticalContentAlignment="Top"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     KeyDown="ImportListBox_KeyDown"
+                                     PreviewMouseLeftButtonDown="LstImportLines_PreviewMouseLeftButtonDown"
+                                     PreviewMouseLeftButtonUp="LstImportLines_PreviewMouseLeftButtonUp"
+                                     MouseMove="LstImportLines_MouseMove" />
+                        </Border>
+
+                        <Border Grid.Column="1" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="8" Background="White" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Dodaj kody (każdy w osobnej lini)" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <TextBox Grid.Row="1" x:Name="TxtImportBulkInput" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" MinHeight="220" Margin="0,0,0,8" />
+                                <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Stretch">
+                                    <Button x:Name="BtnAddImportLines" Content="Dodaj" Click="BtnAddImportLines_Click" Padding="12,8" Margin="0,0,0,6" Background="#3B82F6" Foreground="White" BorderBrush="#2563EB" HorizontalAlignment="Stretch" />
+                                    <Button x:Name="BtnDeleteSelectedImports" Content="Usuń zaznaczone" Click="BtnDeleteSelectedImports_Click" Padding="12,8" Margin="0,0,0,6" Background="#ef4444" Foreground="White" BorderBrush="#b91c1c" HorizontalAlignment="Stretch" />
+                                    <Button x:Name="BtnSaveImports" Content="Zapisz" Click="BtnSaveImports_Click" Padding="12,8" Background="#22c55e" Foreground="White" BorderBrush="#16a34a" HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
             </Grid>
         </Grid>

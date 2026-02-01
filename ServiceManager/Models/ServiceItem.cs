@@ -8,5 +8,6 @@
         public string ServiceName { get; set; } = "";
         public string LogFolderPath { get; set; } = "";
         public string ExternalConfigPath { get; set; } = "";
+        public string ExternalImportPath { get; set; } = "";
     }
 }

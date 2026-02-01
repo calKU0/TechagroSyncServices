@@ -2,6 +2,7 @@
 using ServiceManager.Helpers;
 using ServiceManager.Models;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
@@ -24,6 +25,7 @@ namespace ServiceManager
         private ServiceItem? _selectedService;
         private const int InitialTailLines = 5000;
         private const int PageLines = 5000;
+        private const int MaxDisplayedLines = 50000;
 
         private BulkObservableCollection<LogLine> _currentLogLines = new();
         private BulkObservableCollection<LogLine> _filteredLogLines = new();
@@ -38,6 +40,40 @@ namespace ServiceManager
         private decimal _defaultMargin = 25;
         private List<MarginRange> _marginRanges = new();
         private bool _isAtBottom = true;
+        private bool _serviceActionInProgress = false;
+        private BulkObservableCollection<string> _importLines = new();
+        private BulkObservableCollection<string> _filteredImportLines = new();
+        private string? _importFilePath;
+        private string _importSearchTerm = string.Empty;
+        private bool _importDirty = false;
+        private int _importAddedCount = 0;
+        private int _importRemovedCount = 0;
+        private bool _importDragSelecting = false;
+
+        // Helpers to access import controls without relying on generated fields
+        private TextBlock? ImportFilePathBlock => FindName("TxtImportFilePath") as TextBlock;
+        private TextBox? ImportBulkInputBox => FindName("TxtImportBulkInput") as TextBox;
+        private ListBox? ImportListBox => FindName("LstImportLines") as ListBox;
+        private RadioButton? ImportNavButton => FindName("BtnShowImports") as RadioButton;
+        private Grid? ImportViewGrid => FindName("ImportCodesViewContainer") as Grid;
+        private async Task<bool> EnsureImportSavedBeforeNavigateAsync()
+        {
+            if (!_importDirty) return true;
+
+            var result = MessageBox.Show("Masz niezapisane zmiany, Czy chcesz ja zapisać?", "Potwierdzenie", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+            if (result == MessageBoxResult.Yes)
+            {
+                await SaveImportLinesAsync();
+                return true;
+            }
+            if (result == MessageBoxResult.No)
+            {
+                _importDirty = false;
+                return true;
+            }
+
+            return false;
+        }
 
         public MainWindow()
         {
@@ -60,6 +96,242 @@ namespace ServiceManager
                 ServiceSelectionOverlay.Visibility = Visibility.Visible;
                 MainContentAreaNav.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private async Task LoadImportLinesAsync()
+        {
+            _importLines.Clear();
+            _filteredImportLines.Clear();
+
+            _importFilePath = _selectedService?.ExternalImportPath;
+            UpdateImportTabVisibility();
+
+            var importList = ImportListBox;
+            if (importList != null && importList.ItemsSource == null)
+            {
+                importList.ItemsSource = _filteredImportLines;
+            }
+
+            if (string.IsNullOrWhiteSpace(_importFilePath) || !File.Exists(_importFilePath))
+            {
+                var txt = ImportFilePathBlock;
+                if (txt != null)
+                {
+                    txt.Text = string.Empty;
+                }
+                return;
+            }
+
+            var txtPath = ImportFilePathBlock;
+            if (txtPath != null)
+            {
+                txtPath.Text = _importFilePath;
+            }
+
+            try
+            {
+                var lines = await Task.Run(() => File.ReadAllLines(_importFilePath));
+                _importLines.AddRange(lines);
+                ApplyImportFilter();
+                _importDirty = false;
+                _importAddedCount = 0;
+                _importRemovedCount = 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się załadować kodów importu: {ex.Message}");
+            }
+        }
+
+        private void ApplyImportFilter()
+        {
+            _filteredImportLines.Clear();
+
+            IEnumerable<string> source = _importLines;
+            if (!string.IsNullOrWhiteSpace(_importSearchTerm))
+            {
+                source = source.Where(l => l.Contains(_importSearchTerm, StringComparison.OrdinalIgnoreCase));
+            }
+
+            source = source.OrderBy(l => l, StringComparer.OrdinalIgnoreCase);
+
+            _filteredImportLines.AddRange(source);
+        }
+
+        private async Task SaveImportLinesAsync(bool showSuccessMessage = false)
+        {
+            if (string.IsNullOrWhiteSpace(_importFilePath)) return;
+
+            try
+            {
+                var lines = _importLines.ToList();
+                await Task.Run(() => File.WriteAllLines(_importFilePath!, lines));
+                _importDirty = false;
+
+                if (showSuccessMessage)
+                {
+                    MessageBox.Show($"Zapisano kody importu. Dodano: {_importAddedCount}, usunięto: {_importRemovedCount}.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                _importAddedCount = 0;
+                _importRemovedCount = 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się zapisać kodów importu: {ex.Message}");
+            }
+        }
+
+        private void TxtImportSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _importSearchTerm = (sender as TextBox)?.Text ?? string.Empty;
+            ApplyImportFilter();
+        }
+
+        private async void ImportListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete)
+            {
+                await DeleteSelectedImportsAsync();
+                e.Handled = true;
+            }
+        }
+
+        private void LstImportLines_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var listBox = ImportListBox;
+            if (listBox == null) return;
+
+            var position = e.GetPosition(listBox);
+            var hit = listBox.InputHitTest(position) as DependencyObject;
+            if (IsOverScrollBar(hit))
+            {
+                _importDragSelecting = false;
+                return; // allow scrollbar to work normally
+            }
+
+            var item = GetItemUnderMouse(listBox, position);
+            if (item == null)
+            {
+                _importDragSelecting = false;
+                return;
+            }
+
+            if (item.IsSelected && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                item.IsSelected = false; // toggle only this item
+                _importDragSelecting = false;
+                e.Handled = true;
+                return;
+            }
+
+            _importDragSelecting = true;
+            listBox.Focus();
+            if (!item.IsSelected)
+            {
+                item.IsSelected = true;
+            }
+            e.Handled = true; // prevent default selection clearing
+        }
+
+        private void LstImportLines_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _importDragSelecting = false;
+        }
+
+        private void LstImportLines_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_importDragSelecting || e.LeftButton != MouseButtonState.Pressed) return;
+            var listBox = ImportListBox;
+            if (listBox != null)
+            {
+                SelectItemUnderMouse(listBox, e.GetPosition(listBox));
+            }
+        }
+
+        private ListBoxItem? GetItemUnderMouse(ListBox listBox, Point position)
+        {
+            var element = listBox.InputHitTest(position) as DependencyObject;
+            while (element != null && element is not ListBoxItem)
+            {
+                element = VisualTreeHelper.GetParent(element);
+            }
+            return element as ListBoxItem;
+        }
+
+        private void SelectItemUnderMouse(ListBox listBox, Point position)
+        {
+            var item = GetItemUnderMouse(listBox, position);
+            if (item != null)
+            {
+                item.IsSelected = true;
+            }
+        }
+
+        private bool IsOverScrollBar(DependencyObject? element)
+        {
+            while (element != null)
+            {
+                if (element is System.Windows.Controls.Primitives.ScrollBar)
+                    return true;
+                element = VisualTreeHelper.GetParent(element);
+            }
+            return false;
+        }
+
+        private async void BtnAddImportLines_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(_importFilePath)) return;
+
+            var bulkBox = ImportBulkInputBox;
+            if (bulkBox == null) return;
+
+            var pastedText = bulkBox.Text;
+            if (string.IsNullOrWhiteSpace(pastedText)) return;
+
+            var newLines = pastedText
+                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim())
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .ToList();
+
+            if (newLines.Count == 0) return;
+
+            _importLines.AddRange(newLines);
+            ApplyImportFilter();
+            bulkBox.Clear();
+            _importDirty = true;
+            _importAddedCount += newLines.Count;
+
+            MessageBox.Show($"Dodano {newLines.Count} kodów.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async Task DeleteSelectedImportsAsync()
+        {
+            var importList = ImportListBox;
+            if (importList == null || importList.SelectedItems == null || importList.SelectedItems.Count == 0) return;
+
+            var toRemove = importList.SelectedItems.Cast<string>().ToList();
+            foreach (var item in toRemove)
+            {
+                _importLines.Remove(item);
+            }
+
+            ApplyImportFilter();
+            _importDirty = true;
+            _importRemovedCount += toRemove.Count;
+
+            MessageBox.Show($"Usunięto {toRemove.Count} kodów.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async void BtnDeleteSelectedImports_Click(object sender, RoutedEventArgs e)
+        {
+            await DeleteSelectedImportsAsync();
+        }
+
+        private async void BtnSaveImports_Click(object sender, RoutedEventArgs e)
+        {
+            await SaveImportLinesAsync(showSuccessMessage: true);
         }
 
         private async Task LoadEntireFileWithFilterAsync()
@@ -92,9 +364,17 @@ namespace ServiceManager
             var filteredLines = allLines.Select(ParseLogLine)
                                         .Where(l => l.Level == LogLevel.Error || l.Level == LogLevel.Warning);
 
-            _currentLogLines.AddRange(filteredLines);
+            var limited = MaxDisplayedLines > 0
+                ? filteredLines.TakeLast(MaxDisplayedLines)
+                : filteredLines;
+
+            _currentLogLines.AddRange(limited);
+            TrimCurrentLinesIfNeeded();
 
             ApplyFilter(); // Aktualizujemy widok
+
+            _isAtBottom = true;
+            ScrollLogToBottom();
         }
 
         private void InitLogWatcher()
@@ -139,7 +419,8 @@ namespace ServiceManager
                     LogoPath = ConfigurationManager.AppSettings[$"Service_{key}_LogoPath"] ?? "",
                     ServiceName = ConfigurationManager.AppSettings[$"Service_{key}_ServiceName"] ?? "",
                     LogFolderPath = ConfigurationManager.AppSettings[$"Service_{key}_LogFolder"] ?? "",
-                    ExternalConfigPath = ConfigurationManager.AppSettings[$"Service_{key}_ConfigPath"] ?? ""
+                    ExternalConfigPath = ConfigurationManager.AppSettings[$"Service_{key}_ConfigPath"] ?? "",
+                    ExternalImportPath = ConfigurationManager.AppSettings[$"Service_{key}_ImportPath"] ?? ""
                 };
                 AvailableServices.Add(service);
             }
@@ -159,13 +440,41 @@ namespace ServiceManager
             LoadLogFiles();
             LoadConfig();
             _currentLogLines.Clear();
+            _importLines.Clear();
+            _filteredImportLines.Clear();
+            _importFilePath = _selectedService.ExternalImportPath;
+            UpdateImportTabVisibility();
             ServiceNameTextBox.Text = service.Name;
         }
 
-        private void ServiceButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateImportTabVisibility()
+        {
+            bool exists = !string.IsNullOrWhiteSpace(_importFilePath) && File.Exists(_importFilePath);
+            var importsBtn = ImportNavButton;
+            if (importsBtn != null)
+            {
+                importsBtn.Visibility = exists ? Visibility.Visible : Visibility.Collapsed;
+                if (!exists)
+                {
+                    importsBtn.IsChecked = false;
+                }
+            }
+
+            var importView = ImportViewGrid;
+            if (!exists && importView != null && importView.Visibility == Visibility.Visible)
+            {
+                importView.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void ServiceButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is ServiceItem service)
             {
+                if (!await EnsureImportSavedBeforeNavigateAsync())
+                {
+                    return;
+                }
                 SelectService(service);
                 CbServiceSelector.SelectedValue = service.Id;
                 ServiceSelectionOverlay.Visibility = Visibility.Collapsed;
@@ -174,10 +483,16 @@ namespace ServiceManager
             }
         }
 
-        private void CbServiceSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void CbServiceSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (CbServiceSelector.SelectedItem is ServiceItem selected)
             {
+                if (!await EnsureImportSavedBeforeNavigateAsync())
+                {
+                    CbServiceSelector.SelectedValue = _selectedService?.Id;
+                    return;
+                }
+
                 SelectService(selected);
 
                 // Make sure UI panels update correctly
@@ -190,14 +505,42 @@ namespace ServiceManager
                 ConfigViewContainer.Visibility = Visibility.Collapsed;
                 BtnShowLogs.IsChecked = false;
                 BtnShowConfig.IsChecked = false;
+                var importsBtn = ImportNavButton;
+                if (importsBtn != null)
+                {
+                    importsBtn.IsChecked = false;
+                }
+                var importView = ImportViewGrid;
+                if (importView != null)
+                {
+                    importView.Visibility = Visibility.Collapsed;
+                }
             }
         }
 
-        private void BtnShowLogs_Click(object sender, RoutedEventArgs e)
+        private async void BtnShowLogs_Click(object sender, RoutedEventArgs e)
         {
+            if (!await EnsureImportSavedBeforeNavigateAsync())
+            {
+                var importBtn = ImportNavButton;
+                if (importBtn != null) importBtn.IsChecked = true;
+                if (sender is RadioButton rb) rb.IsChecked = false;
+                return;
+            }
             MainContentArea.Visibility = Visibility.Visible;
             LogsViewContainer.Visibility = Visibility.Visible;
             ConfigViewContainer.Visibility = Visibility.Collapsed;
+            var importView = ImportViewGrid;
+            if (importView != null)
+            {
+                importView.Visibility = Visibility.Collapsed;
+            }
+
+            var importsBtn = ImportNavButton;
+            if (importsBtn != null)
+            {
+                importsBtn.IsChecked = false;
+            }
 
             LvLogFiles.ItemsSource = logFiles;
             IcLogLines.ItemsSource = _filteredLogLines;
@@ -219,12 +562,59 @@ namespace ServiceManager
             LoadLogFiles();
         }
 
-        private void BtnShowConfig_Click(object sender, RoutedEventArgs e)
+        private async void BtnShowConfig_Click(object sender, RoutedEventArgs e)
         {
+            if (!await EnsureImportSavedBeforeNavigateAsync())
+            {
+                var importBtn = ImportNavButton;
+                if (importBtn != null) importBtn.IsChecked = true;
+                if (sender is RadioButton rb) rb.IsChecked = false;
+                return;
+            }
+
             LoadConfig();
             MainContentArea.Visibility = Visibility.Visible;
             LogsViewContainer.Visibility = Visibility.Collapsed;
             ConfigViewContainer.Visibility = Visibility.Visible;
+            var importView = ImportViewGrid;
+            if (importView != null)
+            {
+                importView.Visibility = Visibility.Collapsed;
+            }
+
+            var importsBtn = ImportNavButton;
+            if (importsBtn != null)
+            {
+                importsBtn.IsChecked = false;
+            }
+        }
+
+        private async void BtnShowImports_Click(object sender, RoutedEventArgs e)
+        {
+            MainContentArea.Visibility = Visibility.Visible;
+            LogsViewContainer.Visibility = Visibility.Collapsed;
+            ConfigViewContainer.Visibility = Visibility.Collapsed;
+            var importView = ImportViewGrid;
+            if (importView != null)
+            {
+                importView.Visibility = Visibility.Visible;
+            }
+
+            var importList = ImportListBox;
+            if (importList != null)
+            {
+                importList.ItemsSource = _filteredImportLines;
+                importList.Focus();
+            }
+            await LoadImportLinesAsync();
+        }
+
+        private async void Window_Closing(object? sender, CancelEventArgs e)
+        {
+            if (!await EnsureImportSavedBeforeNavigateAsync())
+            {
+                e.Cancel = true;
+            }
         }
 
         private async void RefreshTimer_Tick(object sender, EventArgs e)
@@ -250,6 +640,7 @@ namespace ServiceManager
                 {
                     // update in-memory log lines
                     _currentLogLines.AddRange(newLines.Select(ParseLogLine));
+                    TrimCurrentLinesIfNeeded();
                     ApplyFilter();
                     // update warning/error counters
                     int newWarnings = newLines.Count(l => l.Contains("WRN]", StringComparison.Ordinal));
@@ -349,6 +740,9 @@ namespace ServiceManager
         {
             foreach (var group in groupedFields)
             {
+                if (group.Key == "Marże")
+                    continue; // handled separately in LoadMargins
+
                 var existingFields = group.Where(f => config.AppSettings.Settings.AllKeys.Contains(f.Key)).ToList();
                 if (!existingFields.Any()) continue;
 
@@ -610,12 +1004,17 @@ namespace ServiceManager
 
         private void LoadLogFiles()
         {
+            _ = LoadLogFilesAsync();
+        }
+
+        private async Task LoadLogFilesAsync()
+        {
             logFiles.Clear();
-            if (!Directory.Exists(_selectedService.LogFolderPath)) return;
+            if (string.IsNullOrEmpty(_selectedService?.LogFolderPath) || !Directory.Exists(_selectedService.LogFolderPath)) return;
 
             try
             {
-                var files = Directory.GetFiles(_selectedService.LogFolderPath, "*.txt")
+                var files = await Task.Run(() => Directory.GetFiles(_selectedService.LogFolderPath, "*.txt")
                     .Select(filePath =>
                     {
                         int warnings = 0;
@@ -651,7 +1050,7 @@ namespace ServiceManager
                                 Path = filePath,
                                 WarningsCount = warnings,
                                 ErrorsCount = errors,
-                                Date = parsedDate ?? DateTime.MinValue // add Date property in LogFileItem
+                                Date = parsedDate ?? DateTime.MinValue
                             };
                         }
                         catch
@@ -660,14 +1059,13 @@ namespace ServiceManager
                         }
                     })
                     .Where(f => f != null)
-                    .OrderByDescending(f => f.Date) // latest first
-                    .ToList();
+                    .OrderByDescending(f => f.Date)
+                    .ToList());
 
                 foreach (var f in files)
                     logFiles.Add(f);
 
-                // Auto-select latest file
-                if (logFiles.Count > 0)
+                if (logFiles.Count > 0 && (LvLogFiles.SelectedItem == null || !logFiles.Contains((LogFileItem)LvLogFiles.SelectedItem)))
                 {
                     LvLogFiles.SelectedItem = logFiles[0];
                 }
@@ -750,6 +1148,8 @@ namespace ServiceManager
                         IcLogLines.ScrollIntoView(IcLogLines.Items[^1]);
                     }
                 }, DispatcherPriority.Background);
+                _isAtBottom = true;
+                ScrollLogToBottom();
             }
             catch (Exception ex)
             {
@@ -757,17 +1157,32 @@ namespace ServiceManager
             }
         }
 
-        private void ApplyFilter()
+        private void ScrollLogToBottom()
+        {
+            if (IcLogLines.Items.Count == 0) return;
+
+            Dispatcher.BeginInvoke(() =>
+            {
+                IcLogLines.UpdateLayout();
+                IcLogLines.ScrollIntoView(IcLogLines.Items[^1]);
+            }, DispatcherPriority.Background);
+        }
+
+        private void ApplyFilter(bool skipLimit = false)
         {
             _filteredLogLines.Clear();
 
             bool filter = ChkShowOnlyWarningsAndErrors.IsChecked == true;
 
-            foreach (var line in _currentLogLines)
-            {
-                if (!filter || line.Level == LogLevel.Warning || line.Level == LogLevel.Error)
-                    _filteredLogLines.Add(line);
-            }
+            IEnumerable<LogLine> source = filter
+                ? _currentLogLines.Where(l => l.Level == LogLevel.Warning || l.Level == LogLevel.Error)
+                : _currentLogLines;
+
+            if (MaxDisplayedLines > 0 && !skipLimit)
+                source = source.TakeLast(MaxDisplayedLines);
+
+            var items = source.ToList();
+            _filteredLogLines.AddRange(items);
 
             if (_filteredLogLines.Count > 0 && _isAtBottom)
                 IcLogLines.ScrollIntoView(_filteredLogLines[^1]);
@@ -788,7 +1203,7 @@ namespace ServiceManager
                 if (older.Count > 0)
                 {
                     _currentLogLines.InsertRange(0, older.Select(ParseLogLine));
-                    ApplyFilter();
+                    ApplyFilter(skipLimit: true);
                     _loadedStartOffset = newStart;
                     _reachedFileStart = reachedStart;
 
@@ -839,11 +1254,13 @@ namespace ServiceManager
             _lastSelectedLog = LvLogFiles.SelectedItem;
 
             TxtSelectedFileName.Text = ((LogFileItem)LvLogFiles.SelectedItem).Name;
+            _isAtBottom = true;
             LoadSelectedFileContent();
         }
 
         private void RefreshServiceStatus()
         {
+            if (_serviceActionInProgress) return;
             try
             {
                 _serviceController.Refresh();
@@ -894,47 +1311,70 @@ namespace ServiceManager
 
         private void BtnStartService_Click(object sender, RoutedEventArgs e)
         {
-            try
+            _ = RunServiceActionAsync(() =>
             {
                 _serviceController.Start();
                 _serviceController.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd przy uruchamianiu usługi: {ex.Message}");
-            }
-            RefreshServiceStatus();
+            });
         }
 
         private void BtnStopService_Click(object sender, RoutedEventArgs e)
         {
-            try
+            _ = RunServiceActionAsync(() =>
             {
                 _serviceController.Stop();
                 _serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd przy zatrzymywaniu usługi: {ex.Message}");
-            }
-            RefreshServiceStatus();
+            });
         }
 
         private void BtnRestartService_Click(object sender, RoutedEventArgs e)
         {
-            try
+            _ = RunServiceActionAsync(() =>
             {
                 _serviceController.Stop();
                 _serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
 
                 _serviceController.Start();
                 _serviceController.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+            });
+        }
+
+        private void TrimCurrentLinesIfNeeded()
+        {
+            if (MaxDisplayedLines <= 0) return;
+            int overflow = _currentLogLines.Count - MaxDisplayedLines;
+            if (overflow > 0)
+            {
+                _currentLogLines.RemoveRange(0, overflow);
+            }
+        }
+
+        private async Task RunServiceActionAsync(Action action)
+        {
+            if (_serviceController == null) return;
+            _serviceActionInProgress = true;
+            SetServiceButtonsEnabled(false);
+
+            try
+            {
+                await Task.Run(action);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd przy restartowaniu usługi: {ex.Message}");
+                MessageBox.Show($"Błąd operacji usługi: {ex.Message}");
             }
-            RefreshServiceStatus();
+            finally
+            {
+                _serviceActionInProgress = false;
+                RefreshServiceStatus();
+            }
+        }
+
+        private void SetServiceButtonsEnabled(bool enabled)
+        {
+            BtnStartService.IsEnabled = enabled;
+            BtnStopService.IsEnabled = enabled;
+            BtnRestartService.IsEnabled = enabled;
         }
     }
 }
