@@ -302,7 +302,7 @@ namespace IntercarsSyncService.Services
                     Code = p.TowKod.Length > 20 ? p.TowKod.Substring(0, 20) : p.TowKod,
                     TradingCode = p.IcIndex,
                     Name = p.Description + " " + p.IcIndex,
-                    Ean = p.Barcodes != null ? p.Barcodes.Split(',')[0] : null,
+                    Ean = p.Barcodes != null ? p.Barcodes : null,
                     Brand = p.Manufacturer,
                     Description = p.Description,
                     Weight = p.PackageWeight ?? 0,
