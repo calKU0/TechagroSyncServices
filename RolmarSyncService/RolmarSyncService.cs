@@ -33,7 +33,7 @@ namespace RolmarSyncService
         private readonly HttpClient _httpClient;
 
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
+        private DateTime _lastSnapshotSave = DateTime.MinValue;
 
         public RolmarSyncService()
         {
@@ -109,30 +109,31 @@ namespace RolmarSyncService
 
                 // Step 3: Fetch images from API
                 List<PhotoItem> images = new List<PhotoItem>();
-                //if (DateTime.Now.Day % 20 == 0)
-                //{
-                //    Log.Information($"Fetching images from API...");
-                //    images = await _apiService.FetchProductImages();
-                //    Log.Information("Fetched {Count} images from API.", images.Count);
-                //}
+                if (DateTime.Now.Day % 10 == 0)
+                {
+                    Log.Information($"Fetching images from API...");
+                    images = await _apiService.FetchProductImages();
+                    Log.Information("Fetched {Count} images from API.", images.Count);
+                }
 
                 // Step 4: Build full products data
                 Log.Information($"Building product data...");
                 var fullProducts = BuildHelper.BuildProductDtos(products, stock, images, defaultMargin, marginRanges);
 
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 6)
+                if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
                     // Step 5.1: Detect newly added products
                     Log.Information($"Detecting new products...");
-                    var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
+                    var newProductsFolder = Path.Combine(exportPath, "Nowe");
+                    var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
+                    var snapshotPath = Path.Combine(exportPath, $"products.json");
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, fullProducts, p => p.Code);
 
-                    // Step 5.2: Send notification email about new products
                     if (newProducts.Any())
                     {
-                        Log.Information($"Sending notification emails...");
+                        // Step 5.2: Send notification email about new products
                         var to = AppSettingsLoader.GetEmailsToNotify();
-
                         await BatchEmailNotifier.SendAsync(
                             newProducts,
                             100,
@@ -141,6 +142,16 @@ namespace RolmarSyncService
                             recipients: to,
                             from: "Rolmar Sync Service",
                             emailService: _emailService);
+
+                        Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
+
+                        // Step 5.3: Save CSV snapshot of new products
+                        var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
+                        Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
+
+                        // Step 5.4: Clean old snapshots
+                        var daysToKeep = AppSettingsLoader.GetFilesExpirationDays();
+                        SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
                     }
                     else
                     {
@@ -151,7 +162,7 @@ namespace RolmarSyncService
                     Log.Information($"Exporting product data to json file...");
                     await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, fullProducts);
                     Log.Information("JSON file created at {Path}", snapshotPath);
-                    _lastProductDetailsSyncDate = DateTime.Today;
+                    _lastSnapshotSave = DateTime.Today;
                 }
 
                 // Step 7: Filter by import list

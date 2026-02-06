@@ -245,13 +245,10 @@ namespace AgroramiSyncService.Services
 
             foreach (var product in products)
             {
-                decimal applicableMargin = MarginHelper.CalculateMargin(product.PriceRange.MinimumPrice.IndividualPrice.Net, _defaultMargin, _marginRanges);
-                decimal marginFactor = (applicableMargin / 100m) + 1m;
-
-                decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m)
+                decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m && product.StockAvailability.InStock > 0)
                     ? product.StandardPrice
                     : (decimal?)null;
-                decimal? expressPrice = (product.ExpressPrice.HasValue && product.ExpressPrice.Value != 0m)
+                decimal? expressPrice = (product.ExpressPrice.HasValue && product.ExpressPrice.Value != 0m && product.StockAvailability.InStock > 0)
                     ? product.ExpressPrice
                     : (decimal?)null;
 
@@ -282,6 +279,9 @@ namespace AgroramiSyncService.Services
 
                 async Task AddDtoAsync(string codeValue, decimal buyPrice)
                 {
+                    decimal applicableMargin = MarginHelper.CalculateMargin(buyPrice, _defaultMargin, _marginRanges);
+                    decimal marginFactor = (applicableMargin / 100m) + 1m;
+
                     var netBuyPrice = buyPrice;
                     var grossBuyPrice = buyPrice * 1.23m;
 

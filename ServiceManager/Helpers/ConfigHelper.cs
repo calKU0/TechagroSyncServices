@@ -54,6 +54,7 @@ namespace ServiceManager.Helpers
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
+            new ConfigField { Key = "FilesExpirationDays", Label = "Ilość dni zachowania plików", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
             new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Marże" },
         };

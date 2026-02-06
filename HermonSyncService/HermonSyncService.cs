@@ -30,7 +30,7 @@ namespace HermonSyncService
         private readonly IEmailService _emailService;
 
         private Timer _timer;
-        private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
+        private DateTime _lastSnapshotSave = DateTime.MinValue;
 
         public HermonSyncService()
         {
@@ -83,7 +83,7 @@ namespace HermonSyncService
                 var basicProductData = await _productService.SyncProductsFromFtp();
 
                 // 2.Getting product images
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today)
+                if (_lastSnapshotSave < DateTime.Today)
                 {
                     images = _productService.SyncImagesFromFtp();
                 }
@@ -94,24 +94,37 @@ namespace HermonSyncService
                 // 4. Building full product data
                 var products = await _productService.BuildProductDtos(basicProductData, detailedProductData, images);
 
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 6)
+                if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
                     // Step 5.1: Detect newly added products
-                    var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
+                    var newProductsFolder = Path.Combine(exportPath, "Nowe");
+                    var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
+                    var snapshotPath = Path.Combine(exportPath, $"products.json");
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
 
                     if (newProducts.Any())
                     {
+                        // Step 5.2: Send notification email about new products
                         var to = AppSettingsLoader.GetEmailsToNotify();
-
                         await BatchEmailNotifier.SendAsync(
                             newProducts,
                             100,
-                            batch => $"Nowe produkty ({newProducts.Count})",
+                            batch => $"Nowe produkty Hermon ({newProducts.Count})",
                             batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Hermon"),
                             recipients: to,
                             from: "Hermon Sync Service",
                             emailService: _emailService);
+
+                        Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
+
+                        // Step 5.3: Save CSV snapshot of new products
+                        var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
+                        Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
+
+                        // Step 5.4: Clean old snapshots
+                        var daysToKeep = AppSettingsLoader.GetFilesExpirationDays();
+                        SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
                     }
                     else
                     {
@@ -121,7 +134,7 @@ namespace HermonSyncService
                     // Step 6: Export to JSON
                     await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
                     Log.Information("JSON file created at {Path}", snapshotPath);
-                    _lastProductDetailsSyncDate = DateTime.Today;
+                    _lastSnapshotSave = DateTime.Today;
                 }
 
                 // Step 7: Filter by import list

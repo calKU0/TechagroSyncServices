@@ -31,6 +31,7 @@ namespace RolmarSyncService.Helpers
         }
 
         public static int GetLogsExpirationDays() => ConfigHelper.GetInt("LogsExpirationDays", 14);
+        public static int GetFilesExpirationDays() => ConfigHelper.GetInt("FilesExpirationDays", 31);
 
         public static decimal GetDefaultMargin() => ConfigHelper.GetDecimal("DefaultMargin", 25m);
 

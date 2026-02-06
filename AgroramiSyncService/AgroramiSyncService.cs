@@ -75,24 +75,37 @@ namespace AgroramiSyncService
                 // 1. Getting info about products
                 var products = await _apiService.SyncProducts();
 
-                if (_lastSnapshotSave.Date < DateTime.Today && DateTime.Now.Hour >= 6)
+                if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
-                    // Step 2: Detect newly added products
-                    var snapshotPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export", $"products.json");
+                    // Step 2.1: Detect newly added products
+                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
+                    var newProductsFolder = Path.Combine(exportPath, "Nowe");
+                    var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
+                    var snapshotPath = Path.Combine(exportPath, $"products.json");
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
 
                     if (newProducts.Any())
                     {
+                        // Step 2.2: Send notification email about new products
                         var to = AppSettingsLoader.GetEmailsToNotify();
-
                         await BatchEmailNotifier.SendAsync(
                             newProducts,
                             100,
-                            batch => $"Nowe produkty ({newProducts.Count})",
+                            batch => $"Nowe produkty Agrorami ({newProducts.Count})",
                             batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Agrorami"),
                             recipients: to,
                             from: "Agrorami Sync Service",
                             emailService: _emailService);
+
+                        Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
+
+                        // Step 2.3: Save CSV snapshot of new products
+                        var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
+                        Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
+
+                        // Step 2.4: Clean old snapshots
+                        var daysToKeep = AppSettingsLoader.GetFilesExpirationDays();
+                        SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
                     }
                     else
                     {
@@ -100,6 +113,7 @@ namespace AgroramiSyncService
                     }
 
                     // Step 3: Export to JSON
+                    Log.Information($"Exporting product data to json file...");
                     await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
                     Log.Information("JSON file created at {Path}", snapshotPath);
                     _lastSnapshotSave = DateTime.Today;
