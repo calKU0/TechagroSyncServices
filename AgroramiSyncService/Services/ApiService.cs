@@ -245,10 +245,10 @@ namespace AgroramiSyncService.Services
 
             foreach (var product in products)
             {
-                decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m && product.StockAvailability.InStock > 0)
+                decimal? standardPrice = (product.StandardPrice.HasValue && product.StandardPrice.Value != 0m && product.StockAvailability.InStock == 0)
                     ? product.StandardPrice
                     : (decimal?)null;
-                decimal? expressPrice = (product.ExpressPrice.HasValue && product.ExpressPrice.Value != 0m && product.StockAvailability.InStock > 0)
+                decimal? expressPrice = (product.ExpressPrice.HasValue && product.ExpressPrice.Value != 0m && product.StockAvailability.InStock == 0)
                     ? product.ExpressPrice
                     : (decimal?)null;
 
