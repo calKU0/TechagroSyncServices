@@ -84,7 +84,7 @@ namespace AgroramiSyncService
                     var snapshotPath = Path.Combine(exportPath, $"products.json");
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
 
-                    if (newProducts.Any())
+                    if (newProducts.Any() && newProducts.Count <= 1500)
                     {
                         // Step 2.2: Send notification email about new products
                         var to = AppSettingsLoader.GetEmailsToNotify();

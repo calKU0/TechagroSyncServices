@@ -59,6 +59,7 @@ namespace RolmarSyncService.Services
         {
             try
             {
+                var includeCategorySeparator = typeof(TRoot) == typeof(List<ProductsResponse>);
                 var body = new
                 {
                     data = new[]
@@ -66,13 +67,13 @@ namespace RolmarSyncService.Services
                         new
                         {
                             wsKey = _apiSettings.ApiKey,
-                            param = new[]
+                            param = includeCategorySeparator ? new[]
                             {
                                 new
                                 {
                                     categorySeparator = ">"
                                 }
-                            }
+                            } : null
                         }
                     }
                 };
