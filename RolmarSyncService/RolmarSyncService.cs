@@ -29,6 +29,7 @@ namespace RolmarSyncService
 
         private readonly IProductSyncService _productSyncService;
         private readonly IEmailService _emailService;
+        private readonly ISyncStateService _syncStateService;
 
         private readonly HttpClient _httpClient;
 
@@ -56,6 +57,7 @@ namespace RolmarSyncService
             _apiService = new ApiService(_httpClient);
             _productSyncService = new ProductSyncService(productRepository);
             _emailService = new EmailService(smtpSettings);
+            _syncStateService = new FileSyncStateService();
 
             InitializeComponent();
         }
@@ -108,12 +110,18 @@ namespace RolmarSyncService
                 Log.Information("Fetched {Count} stock from API.", stock.Count);
 
                 // Step 3: Fetch images from API
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+                int previousProductsCount = _syncStateService.GetLastProductsCount();
+                int currentProductsCount = FileUtils.ReadImportList(importFilePath).Count;
+                bool productsChanged = previousProductsCount == 0 || previousProductsCount != currentProductsCount;
+
                 List<PhotoItem> images = new List<PhotoItem>();
-                if (DateTime.Now.Day % 10 == 0)
+                if (productsChanged)
                 {
                     Log.Information($"Fetching images from API...");
                     images = await _apiService.FetchProductImages();
                     Log.Information("Fetched {Count} images from API.", images.Count);
+                    _syncStateService.SetLastProductsCount(currentProductsCount);
                 }
 
                 // Step 4: Build full products data
@@ -167,7 +175,6 @@ namespace RolmarSyncService
 
                 // Step 7: Filter by import list
                 Log.Information($"Filtering products by import list...");
-                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
                 var allowedCodes = FileUtils.ReadImportList(importFilePath);
 
                 if (!allowedCodes.Any())

@@ -106,6 +106,7 @@
     <Compile Include="DTOs\ImageDto.cs" />
     <Compile Include="DTOs\MarginRange.cs" />
     <Compile Include="DTOs\ProductDto.cs" />
+    <Compile Include="DTOs\SyncStateDto.cs" />
     <Compile Include="Enums\IntegrationCompany.cs" />
     <Compile Include="Helpers\BatchEmailNotifier.cs" />
     <Compile Include="Helpers\CalculateMargin.cs" />
@@ -123,7 +124,9 @@
     <Compile Include="Repositories\ProductRepository.cs" />
     <Compile Include="Services\EmailService.cs" />
     <Compile Include="Services\IProductSyncService.cs" />
+    <Compile Include="Services\ISyncStateService.cs" />
     <Compile Include="Services\ProductSyncService.cs" />
+    <Compile Include="Services\FileSyncStateService.cs" />
     <Compile Include="Settings\SmtpSettings.cs" />
   </ItemGroup>
   <ItemGroup>
