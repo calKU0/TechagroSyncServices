@@ -92,6 +92,7 @@
     <Compile Include="AmapartsSyncService.Designer.cs">
       <DependentUpon>AmapartsSyncService.cs</DependentUpon>
     </Compile>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="Helpers\BuildHelper.cs" />
     <Compile Include="Helpers\GroupHelper.cs" />
     <Compile Include="Settings\AgrolandApiSettings.cs" />

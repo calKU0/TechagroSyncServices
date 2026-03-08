@@ -1,4 +1,5 @@
-﻿using HermonSyncService.DTOs;
+﻿using HermonSyncService.Constants;
+using HermonSyncService.DTOs;
 using HermonSyncService.Helpers;
 using Serilog;
 using System;
@@ -8,7 +9,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.DTOs;
-using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 
@@ -202,7 +202,7 @@ namespace HermonSyncService.Services
                     Weight = ftpProduct.Weight ?? 0,
                     Brand = detail.ProducerName,
                     Unit = ftpProduct.Unit,
-                    IntegrationCompany = IntegrationCompany.HERMON,
+                    IntegrationCompany = ServiceConstants.Company,
                     Description = ftpProduct.Description,
                     Images = BuildProductImages(productCode, imagesTemp)
                 });

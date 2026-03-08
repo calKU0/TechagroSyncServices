@@ -98,6 +98,7 @@
     <Compile Include="AgroramiSyncService.Designer.cs">
       <DependentUpon>AgroramiSyncService.cs</DependentUpon>
     </Compile>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\AttributeMetadataResponse.cs" />
     <Compile Include="DTOs\CustomerTokenResponse.cs" />
     <Compile Include="DTOs\ProductsResponse.cs" />

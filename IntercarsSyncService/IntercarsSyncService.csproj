@@ -93,6 +93,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\ApiFile.cs" />
     <Compile Include="DTOs\FullProductDto.cs" />
     <Compile Include="DTOs\ImageResponse.cs" />

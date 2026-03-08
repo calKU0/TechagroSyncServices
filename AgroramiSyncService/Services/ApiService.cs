@@ -1,6 +1,7 @@
 ﻿using AgroramiSyncService.DTOs;
 using AgroramiSyncService.Helpers;
 using AgroramiSyncService.Settings;
+using AgroramiSyncService.Constants;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -305,7 +306,7 @@ namespace AgroramiSyncService.Services
                         Weight = product.Weight ?? 0,
                         Brand = product.ManufacturerLabel,
                         Unit = UnitHelpers.MapUnitLabel(product.UnitLabel),
-                        IntegrationCompany = IntegrationCompany.AGRORAMI,
+                        IntegrationCompany = ServiceConstants.Company,
                         Description = descriptionText,
                         Images = await BuildProductImagesAsync(codeValue, product.MediaGallery),
                         CategoriesString = BuildLeafCategoriesString(product.Categories)

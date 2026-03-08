@@ -1,4 +1,5 @@
 ﻿using AmapartsSyncService.DTOs;
+using AmapartsSyncService.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,7 +32,7 @@ namespace AmapartsSyncService.Helpers
                 Weight = 0,
                 Brand = p.Manufacturer,
                 Unit = "szt.",
-                IntegrationCompany = IntegrationCompany.AMA
+                IntegrationCompany = ServiceConstants.Company
             };
 
             // ---------- Description ----------

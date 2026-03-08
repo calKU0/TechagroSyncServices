@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using IntercarsSyncService.Constants;
 using IntercarsSyncService.DTOs;
 using IntercarsSyncService.Helpers;
 using IntercarsSyncService.Settings;
@@ -11,7 +12,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.DTOs;
-using TechagroApiSync.Shared.Enums;
 using TechagroApiSync.Shared.Helpers;
 using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.DTOs;
@@ -166,7 +166,7 @@ namespace IntercarsSyncService.Services
                 }
 
                 // Step 8.1: Delete products not in the current import list
-                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.INTERCARS);
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
 
                 // Step 8.2: Sync current products
                 await _productSyncService.SyncToDatabaseAsync(fullProducts);
@@ -322,7 +322,7 @@ namespace IntercarsSyncService.Services
                     Weight = p.PackageWeight ?? 0,
                     Unit = "szt.",
                     Vat = 23,
-                    IntegrationCompany = IntegrationCompany.INTERCARS,
+                    IntegrationCompany = ServiceConstants.Company,
                     Images = imageIndex.TryGetValue(p.TowKod, out var imgs)
                         ? imgs
                         : new List<ImageDto>()

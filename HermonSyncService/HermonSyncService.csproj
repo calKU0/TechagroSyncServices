@@ -98,6 +98,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\AuthResponse.cs" />
     <Compile Include="DTOs\FtpImage.cs" />
     <Compile Include="DTOs\FullProductDto.cs" />

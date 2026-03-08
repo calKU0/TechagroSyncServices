@@ -1,4 +1,5 @@
-﻿using HermonSyncService.DTOs;
+﻿using HermonSyncService.Constants;
+using HermonSyncService.DTOs;
 using HermonSyncService.Helpers;
 using HermonSyncService.Services;
 using Serilog;
@@ -9,7 +10,6 @@ using System.Linq;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
-using TechagroApiSync.Shared.Enums;
 using TechagroApiSync.Shared.Helpers;
 using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
@@ -158,7 +158,7 @@ namespace HermonSyncService
                 }
 
                 // Step 8.1: Delete products not in the current import list
-                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, IntegrationCompany.HERMON);
+                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
 
                 // Step 8.2: Sync current products
                 await _productSyncService.SyncToDatabaseAsync(products);

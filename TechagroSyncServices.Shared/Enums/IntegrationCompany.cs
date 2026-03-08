@@ -9,5 +9,6 @@
         HERMON = 5,
         INTERCARS = 6,
         ROLMAR = 7,
+        ROLNEX = 8,
     }
 }

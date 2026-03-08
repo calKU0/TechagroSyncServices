@@ -1,4 +1,5 @@
 ﻿using RolmarSyncService.DTOs;
+using RolmarSyncService.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,7 +66,7 @@ namespace RolmarSyncService.Helpers
                     : "",
                     Vat = 23,
                     Unit = "szt.",
-                    IntegrationCompany = IntegrationCompany.ROLMAR,
+                    IntegrationCompany = ServiceConstants.Company,
                     Quantity = stockDict.TryGetValue(p.ProductIndex, out var s) ? s.Stock : 0,
                     Images = imageDict.TryGetValue(p.ProductIndex, out var imgs) ? BuildProductImages(p.ProductIndex, imgs) : new List<ImageDto>()
                 };

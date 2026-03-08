@@ -1,6 +1,7 @@
 ﻿using AgrolandSyncService.DTOs;
 using AgrolandSyncService.Helpers;
 using AgrolandSyncService.Settings;
+using AgrolandSyncService.Constants;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -82,7 +83,7 @@ namespace AgrolandSyncService.Services
                                 Weight = apiProduct.Weight ?? 0,
                                 Brand = apiProduct.Brand?.Name,
                                 Unit = apiProduct.Unit,
-                                IntegrationCompany = IntegrationCompany.AGROLAND
+                                IntegrationCompany = ServiceConstants.Company
                             };
 
                             int result = await _productRepo.UpsertProductAsync(dto);

@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\FullProductDto.cs" />
     <Compile Include="DTOs\PhotosResponse.cs" />
     <Compile Include="DTOs\ProductsResponse.cs" />

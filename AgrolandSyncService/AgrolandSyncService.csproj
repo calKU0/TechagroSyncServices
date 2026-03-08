@@ -109,6 +109,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\ApiProductsResponse.cs" />
     <Compile Include="Settings\AgrolandApiSettings.cs" />
     <Compile Include="Helpers\AppSettingsLoader.cs" />

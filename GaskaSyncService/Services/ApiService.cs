@@ -1,6 +1,7 @@
 ﻿using GaskaSyncService.DTOs;
 using GaskaSyncService.Helpers;
 using GaskaSyncService.Settings;
+using GaskaSyncService.Constants;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -103,7 +104,7 @@ namespace GaskaSyncService.Services
                                     Weight = (decimal)apiProduct.GrossWeight,
                                     Brand = apiProduct.SupplierName,
                                     Unit = apiProduct.Unit,
-                                    IntegrationCompany = IntegrationCompany.GĄSKA
+                                    IntegrationCompany = ServiceConstants.Company
                                 };
 
                                 int result = await _productRepo.UpsertProductAsync(dto);
