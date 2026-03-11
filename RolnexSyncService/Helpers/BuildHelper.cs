@@ -1,11 +1,10 @@
-﻿using RolnexSyncService.DTOs;
-using RolnexSyncService.Constants;
+﻿using RolnexSyncService.Constants;
+using RolnexSyncService.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TechagroApiSync.Shared.DTOs;
-using TechagroApiSync.Shared.Enums;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 
@@ -20,22 +19,25 @@ namespace RolnexSyncService.Helpers
             var descBuilder = new StringBuilder();
 
             if (!string.IsNullOrWhiteSpace(p.Desc))
-                descBuilder.Append(p.Desc);
+                descBuilder.Append($"<p>{p.Desc}</p>");
+
+            if (!string.IsNullOrWhiteSpace(p.Brand))
+                descBuilder.Append($"<p><b>Producent: </b>{p.Brand}</p>");
 
             if (!string.IsNullOrWhiteSpace(p.CrossNumbers))
-            {
                 descBuilder.Append($"<p><b>Numery referencyjne: </b>{p.CrossNumbers}</p>");
-            }
 
             var dto = new ProductDto
             {
                 Id = p.Id,
-                Code = p.Sku,
+                Code = "RL" + p.Id,
+                TradingCode = p.Sku,
                 Ean = p.Ean,
                 Name = p.Name,
                 Quantity = p.Qty,
                 Description = descBuilder.ToString(),
                 CategoriesString = BuildCategoriesString(p.Categories),
+                Brand = p.Brand,
 
                 NetBuyPrice = p.PriceAfterDiscountNet,
                 GrossBuyPrice = p.PriceAfterDiscountNet * (1 + (p.Vat / 100m)),
