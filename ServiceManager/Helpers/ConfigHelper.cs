@@ -51,6 +51,10 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "HermonFtpUsername", Label = "Użytkownik", Group = "Hermon FTP" , IsEnabled = false},
             new ConfigField { Key = "HermonFtpPassword", Label = "Hasło", Group = "Hermon FTP" , IsEnabled = false},
 
+            // Rolnex API
+            new ConfigField { Key = "RolnexApiBaseUrl", Label = "Adres API Rolnex", Group = "Rolnex API" , IsEnabled = false},
+            new ConfigField { Key = "RolnexApiKey", Label = "Klucz API", Group = "Rolnex API" , IsEnabled = false},
+
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
