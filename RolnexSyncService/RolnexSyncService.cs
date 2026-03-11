@@ -88,10 +88,10 @@ namespace RolnexSyncService
                 if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
                     // Step 3.1: Detect newly added products
-                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
-                    var newProductsFolder = Path.Combine(exportPath, "Nowe");
-                    var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
-                    var snapshotPath = Path.Combine(exportPath, $"products.json");
+                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ExportFolder);
+                    var newProductsFolder = Path.Combine(exportPath, ServiceConstants.NewProductsFolder);
+                    var newProductsFileName = string.Format(ServiceConstants.NewProductsFileNameFormat, DateTime.Today.ToString("dd-MM-yyyy"));
+                    var snapshotPath = Path.Combine(exportPath, ServiceConstants.SnapshotFileName);
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
 
                     if (newProducts.Any() && newProducts.Count <= 1500)
@@ -130,7 +130,7 @@ namespace RolnexSyncService
                 }
 
                 // Step 5: Filter by import list
-                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
 
                 var allowedCodes = FileUtils.ReadImportList(importFilePath);
 

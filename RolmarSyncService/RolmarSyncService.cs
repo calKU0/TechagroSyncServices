@@ -110,7 +110,7 @@ namespace RolmarSyncService
                 Log.Information("Fetched {Count} stock from API.", stock.Count);
 
                 // Step 3: Fetch images from API
-                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
+                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
                 int previousProductsCount = _syncStateService.GetLastProductsCount();
                 int currentProductsCount = FileUtils.ReadImportList(importFilePath).Count;
                 bool productsChanged = previousProductsCount == 0 || previousProductsCount != currentProductsCount;
@@ -132,10 +132,10 @@ namespace RolmarSyncService
                 {
                     // Step 5.1: Detect newly added products
                     Log.Information($"Detecting new products...");
-                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
-                    var newProductsFolder = Path.Combine(exportPath, "Nowe");
-                    var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
-                    var snapshotPath = Path.Combine(exportPath, $"products.json");
+                    var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ExportFolder);
+                    var newProductsFolder = Path.Combine(exportPath, ServiceConstants.NewProductsFolder);
+                    var newProductsFileName = string.Format(ServiceConstants.NewProductsFileNameFormat, DateTime.Today.ToString("dd-MM-yyyy"));
+                    var snapshotPath = Path.Combine(exportPath, ServiceConstants.SnapshotFileName);
                     var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, fullProducts, p => p.Code);
 
                     if (newProducts.Any())
