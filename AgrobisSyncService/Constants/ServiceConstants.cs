@@ -1,16 +1,16 @@
-using TechagroApiSync.Shared.Enums;
+﻿using TechagroApiSync.Shared.Enums;
 
-namespace RolnexSyncService.Constants
+namespace AgrobisSyncService.Constants
 {
-    public static class ServiceConstants
+    public class ServiceConstants
     {
-        public const IntegrationCompany Company = IntegrationCompany.ROLNEX;
+        public const IntegrationCompany Company = IntegrationCompany.AGROBIS;
 
         // Paths
         public const string ExportFolder = "Export";
         public const string NewProductsFolder = "Nowe";
         public const string ImportCodesFilePath = "Import/numery_katalogowe.txt";
         public const string SnapshotFileName = "products.json";
-        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv"; // {0} = date
+        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv";
     }
 }

@@ -10,5 +10,6 @@
         INTERCARS = 6,
         ROLMAR = 7,
         ROLNEX = 8,
+        AGROBIS = 9,
     }
 }

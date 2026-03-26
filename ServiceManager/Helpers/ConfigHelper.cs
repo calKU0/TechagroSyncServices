@@ -55,6 +55,11 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "RolnexApiBaseUrl", Label = "Adres API Rolnex", Group = "Rolnex API" , IsEnabled = false},
             new ConfigField { Key = "RolnexApiKey", Label = "Klucz API", Group = "Rolnex API" , IsEnabled = false},
 
+            // Agrobis API
+            new ConfigField { Key = "AgrobisApiBaseUrl", Label = "Adres API Rolnex", Group = "Agrobis API" , IsEnabled = false},
+            new ConfigField { Key = "AgrobisApiKey", Label = "Klucz API", Group = "Agrobis API" , IsEnabled = false},
+            new ConfigField { Key = "AgrobisApiProductsPerPage", Label = "Produkty na strone", Group = "Agrobis API" , IsEnabled = false},
+
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
