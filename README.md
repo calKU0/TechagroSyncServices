@@ -54,6 +54,16 @@ This makes monitoring and managing all services simple and intuitive.
   - Reads data from **Rolmar API** (JSON format)
   - Transforms and stores results in the database
 
+- **RolnexSyncService**
+
+  - Reads data from **Rolnex CSV files** downloaded from their website (CSV format)
+  - Transforms and stores results in the database
+
+- **AgrobisSyncService**
+
+  - Reads data from **Agrobis API** (JSON format)
+  - Cleans and inserts data into the database
+
 ## Features
 
 - Automated supplier data synchronization
