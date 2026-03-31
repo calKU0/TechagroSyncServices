@@ -65,6 +65,7 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
             new ConfigField { Key = "FilesExpirationDays", Label = "Ilość dni zachowania plików", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
+            new ConfigField { Key = "SupplierDiscount", Label = "Rabat producenta (%)", Group = "Inne ustawienia" },
             new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Marże" },
         };
 

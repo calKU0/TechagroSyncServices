@@ -44,6 +44,8 @@ namespace AgrobisSyncService.Helpers
 
         public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
 
+        public static decimal GetSupplierDiscount() => ConfigHelper.GetDecimal("DefaultMargin", 0m);
+
         public static string GetEmailsToNotify() => ConfigHelper.GetString("EmailsToNotify");
     }
 }

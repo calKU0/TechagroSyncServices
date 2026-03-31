@@ -16,6 +16,9 @@ namespace AgrobisSyncService.Helpers
         public static ProductDto BuildProductDto(ProductsResponse p, decimal defaultMargin, List<MarginRange> marginRanges)
         {
             decimal applicableMargin = MarginHelper.CalculateMargin(p.PriceNet, defaultMargin, marginRanges);
+            decimal supplierDiscount = AppSettingsLoader.GetSupplierDiscount();
+            supplierDiscount = Math.Min(Math.Max(supplierDiscount, 0m), 100m);
+            decimal discountedPriceNet = p.PriceNet * (1 - (supplierDiscount / 100m));
 
             var descBuilder = new StringBuilder();
 
@@ -25,7 +28,7 @@ namespace AgrobisSyncService.Helpers
             var dto = new ProductDto
             {
                 Id = p.Id,
-                Code = p.Index.Trim(),
+                Code = "AB" + p.Index.Trim(),
                 TradingCode = p.Index.Trim(),
                 Ean = (p.Ean ?? string.Empty).Trim(),
                 Name = Regex.Replace((p.Name ?? string.Empty).Trim(), @"\s+", " "),
@@ -34,11 +37,11 @@ namespace AgrobisSyncService.Helpers
                 CategoriesString = BuildCategoriesString(p.Categories),
                 Brand = (p.Brand ?? string.Empty).Trim(),
 
-                NetBuyPrice = p.PriceNet,
-                GrossBuyPrice = p.PriceNet * 1.23m,
+                NetBuyPrice = discountedPriceNet,
+                GrossBuyPrice = discountedPriceNet * 1.23m,
 
-                NetSellPriceB = p.PriceNet * ((applicableMargin / 100m) + 1),
-                GrossSellPriceB = p.PriceNet * 1.23m * ((applicableMargin / 100m) + 1),
+                NetSellPriceB = discountedPriceNet * ((applicableMargin / 100m) + 1),
+                GrossSellPriceB = discountedPriceNet * 1.23m * ((applicableMargin / 100m) + 1),
 
                 Vat = 1.23m,
                 Weight = p.Weight,
