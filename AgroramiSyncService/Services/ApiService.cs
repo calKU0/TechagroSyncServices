@@ -1,14 +1,13 @@
-﻿using AgroramiSyncService.DTOs;
+﻿using AgroramiSyncService.Constants;
+using AgroramiSyncService.DTOs;
 using AgroramiSyncService.Helpers;
 using AgroramiSyncService.Settings;
-using AgroramiSyncService.Constants;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.DTOs;
-using TechagroApiSync.Shared.Enums;
 using TechagroApiSync.Shared.Helpers;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
@@ -42,7 +41,7 @@ namespace AgroramiSyncService.Services
                 int currentPage = 1;
                 int maxRetries = 3;
                 int currentTry = 0;
-                int pageSize = 500;
+                int pageSize = 1000;
 
                 // Step 2: Download products with pagination
                 while (true && currentTry <= maxRetries)
@@ -69,6 +68,7 @@ namespace AgroramiSyncService.Services
                     finally
                     {
                         currentPage++;
+                        await Task.Delay(2000);
                     }
                 }
 
