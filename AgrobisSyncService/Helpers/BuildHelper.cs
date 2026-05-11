@@ -43,7 +43,7 @@ namespace AgrobisSyncService.Helpers
                 NetSellPriceB = discountedPriceNet * ((applicableMargin / 100m) + 1),
                 GrossSellPriceB = discountedPriceNet * 1.23m * ((applicableMargin / 100m) + 1),
 
-                Vat = 1.23m,
+                Vat = 23,
                 Weight = p.Weight,
                 Unit = p.SaleUnit,
 
