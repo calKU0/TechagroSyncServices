@@ -31,6 +31,7 @@ namespace TechagroApiSync.Shared.Helpers
                     {
                         filtered.Add(item);
                         foundSet.Add(baseCode);
+                        continue;
                     }
                 }
             }

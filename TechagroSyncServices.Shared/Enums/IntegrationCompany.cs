@@ -11,5 +11,6 @@
         ROLMAR = 7,
         ROLNEX = 8,
         AGROBIS = 9,
+        GRANIT = 10,
     }
 }
