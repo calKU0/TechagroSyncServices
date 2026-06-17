@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using AgroramiSyncService.Helpers;
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace AgroramiSyncService.DTOs
@@ -12,31 +14,31 @@ namespace AgroramiSyncService.DTOs
         public string Sku { get; set; }
 
         [JsonPropertyName("ean")]
-        public string Ean { get; set; }
+        public string Ean { get; set; } = "test";
 
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "test";
 
         [JsonPropertyName("catalog_number")]
-        public string CatalogNumber { get; set; }
+        public string CatalogNumber { get; set; } = "test";
 
         [JsonPropertyName("description")]
-        public HtmlContent Description { get; set; }
+        public HtmlContent Description { get; set; } = new HtmlContent();
 
         [JsonPropertyName("short_description")]
-        public HtmlContent ShortDescription { get; set; }
+        public HtmlContent ShortDescription { get; set; } = new HtmlContent();
 
         [JsonPropertyName("manufacturer")]
         public int? Manufacturer { get; set; }
 
         [JsonIgnore]
-        public string ManufacturerLabel { get; set; }
+        public string ManufacturerLabel { get; set; } = "test";
 
         [JsonPropertyName("weight")]
         public decimal? Weight { get; set; }
 
         [JsonPropertyName("stock_status")]
-        public string StockStatus { get; set; }
+        public string StockStatus { get; set; } = "test";
 
         [JsonPropertyName("stock_availability")]
         public StockAvailability StockAvailability { get; set; }
@@ -45,22 +47,26 @@ namespace AgroramiSyncService.DTOs
         public int? Unit { get; set; }
 
         [JsonIgnore]
-        public string UnitLabel { get; set; }
+        public string UnitLabel { get; set; } = "test";
 
         [JsonPropertyName("express_external_shipping_price")]
-        public decimal? ExpressPrice { get; set; }
+        public decimal? ExpressPrice { get; set; } = 0;
 
         [JsonPropertyName("standard_external_shipping_price")]
-        public decimal? StandardPrice { get; set; }
+        public decimal? StandardPrice { get; set; } = 0;
 
         [JsonPropertyName("price_range")]
-        public PriceRange PriceRange { get; set; }
+        public PriceRange PriceRange { get; set; } = new PriceRange();
 
         [JsonPropertyName("media_gallery")]
-        public List<MediaGalleryItem> MediaGallery { get; set; }
+        public List<MediaGalleryItem> MediaGallery { get; set; } = new List<MediaGalleryItem>();
 
         [JsonPropertyName("categories")]
-        public List<Categories> Categories { get; set; }
+        public List<Categories> Categories { get; set; } = new List<Categories>();
+
+        [JsonPropertyName("created_at")]
+        [JsonConverter(typeof(FlexibleDateTimeConverter))]
+        public DateTime? CreatedAt { get; set; }
     }
 
     public class HtmlContent
@@ -81,25 +87,25 @@ namespace AgroramiSyncService.DTOs
     public class PriceRange
     {
         [JsonPropertyName("minimum_price")]
-        public MinimumPrice MinimumPrice { get; set; }
+        public MinimumPrice MinimumPrice { get; set; } = new MinimumPrice();
     }
 
     public class MinimumPrice
     {
         [JsonPropertyName("individual_price")]
-        public IndividualPrice IndividualPrice { get; set; }
+        public IndividualPrice IndividualPrice { get; set; } = new IndividualPrice();
     }
 
     public class IndividualPrice
     {
         [JsonPropertyName("net")]
-        public decimal Net { get; set; }
+        public decimal Net { get; set; } = 0;
 
         [JsonPropertyName("gross")]
-        public decimal Gross { get; set; }
+        public decimal Gross { get; set; } = 0;
 
         [JsonPropertyName("currency")]
-        public string Currency { get; set; }
+        public string Currency { get; set; } = "test";
     }
 
     public class Categories

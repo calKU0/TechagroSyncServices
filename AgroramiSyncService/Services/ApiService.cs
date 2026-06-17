@@ -35,41 +35,79 @@ namespace AgroramiSyncService.Services
             {
                 Log.Information("Starting product synchronization...");
 
-                // Step 1: Get Customer Token
                 var token = await GetCustomerTokenAsync();
                 var allProducts = new List<ProductsResponse>();
-                int currentPage = 1;
+
+                DateTime start = new DateTime(2024, 1, 1);
+                DateTime end = DateTime.UtcNow;
+
+                TimeSpan windowSize = TimeSpan.FromDays(15);
+
+                int pageSize = 750;
                 int maxRetries = 3;
-                int currentTry = 0;
-                int pageSize = 1000;
 
-                // Step 2: Download products with pagination
-                while (true && currentTry <= maxRetries)
+                while (start < end)
                 {
-                    try
-                    {
-                        var pageProducts = await GetProductsAsync(token, currentPage, pageSize);
+                    DateTime windowEnd = start.Add(windowSize);
+                    if (windowEnd > end)
+                        windowEnd = end;
 
-                        if (pageProducts == null || pageProducts.Count == 0)
+                    Log.Information("Processing window {Start} → {End}", start, windowEnd);
+
+                    int currentPage = 1;
+
+                    while (true)
+                    {
+                        try
                         {
-                            Log.Information("No more products found (page {Page}).", currentPage);
-                            break;
-                        }
+                            var pageProducts = await GetProductsByDateRangeAsync(
+                                token,
+                                start,
+                                windowEnd,
+                                currentPage,
+                                pageSize
+                            );
 
-                        Log.Information("Fetched {Count} products from page {Page}.", pageProducts.Count, currentPage);
-                        allProducts.AddRange(pageProducts);
-                        currentTry = 0;
+                            if (pageProducts == null || pageProducts.Count == 0)
+                                break;
+
+                            Log.Information(
+                                "Fetched {Count} products (window {Start}-{End}, page {Page})",
+                                pageProducts.Count,
+                                start,
+                                windowEnd,
+                                currentPage
+                            );
+
+                            allProducts.AddRange(pageProducts);
+
+                            currentPage++;
+
+                            await Task.Delay(1200);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning(ex,
+                                "Error in window {Start}-{End}, page {Page}",
+                                start,
+                                windowEnd,
+                                currentPage);
+
+                            maxRetries--;
+
+                            if (maxRetries <= 0)
+                            {
+                                Log.Error("Skipping window {Start}-{End}", start, windowEnd);
+                                break;
+                            }
+
+                            await Task.Delay(5000);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error fetching products on page {Page}", currentPage);
-                        currentTry++;
-                    }
-                    finally
-                    {
-                        currentPage++;
-                        await Task.Delay(2000);
-                    }
+
+                    // move to next window
+                    start = windowEnd.AddSeconds(1);
+                    maxRetries = 3;
                 }
 
                 if (allProducts.Count == 0)
@@ -78,15 +116,14 @@ namespace AgroramiSyncService.Services
                     return null;
                 }
 
-                // Step 3: Download attributes
                 var attributes = await GetAttributeMetadataAsync(token);
 
-                // Step 4: Aggregate and merge data
                 Log.Information("Mapping attribute labels...");
                 MapAttributeLabels(allProducts, attributes);
 
                 var products = await BuildProductDtos(allProducts);
-                Log.Information("Mapping completed. Fetched {Count} products.", allProducts.Count);
+
+                Log.Information("Mapping completed. Prepared {Count} products.", products.Count);
 
                 return products;
             }
@@ -113,69 +150,84 @@ namespace AgroramiSyncService.Services
             return result["generateCustomerToken"].Token;
         }
 
-        private async Task<List<ProductsResponse>> GetProductsAsync(string token, int currentPage, int pageSize)
+        private async Task<List<ProductsResponse>> GetProductsByDateRangeAsync(string token, DateTime from, DateTime to, int currentPage, int pageSize)
         {
+            var fromStr = from.ToString("yyyy-MM-dd HH:mm:ss");
+            var toStr = to.ToString("yyyy-MM-dd HH:mm:ss");
+
             var query = $@"
-                query Products {{
-                    products(filter: {{ category_id: {{ eq: ""4"" }} }}, pageSize: {pageSize}, currentPage: {currentPage}) {{
-                        items {{
+            query Products {{
+                products(
+                    filter: {{
+                        created_at: {{
+                            from: ""{fromStr}"",
+                            to: ""{toStr}""
+                        }}
+                        category_id: {{ eq: ""4"" }}
+                    }},
+                    pageSize: {pageSize},
+                    currentPage: {currentPage}
+                ) {{
+                    items {{
+                        id
+                        sku
+                        name
+                        created_at
+                        standard_external_shipping_price
+                        express_external_shipping_price
+                        catalog_number
+                        description {{ html }}
+                        short_description {{ html }}
+                        manufacturer
+                        unit
+                        ... on SimpleProduct {{
+                            weight
+                        }}
+                        categories {{
                             id
-                            sku
                             name
-                            standard_external_shipping_price
-                            express_external_shipping_price
-                            catalog_number
-                            description {{ html }}
-                            short_description {{ html }}
-                            manufacturer
-                            unit
-                            ... on SimpleProduct {{
-                                weight
+                            url_key
+                            url_path
+                            level
+                            breadcrumbs {{
+                                category_id
+                                category_name
+                                category_url_path
                             }}
-                            categories {{
-                                id
-                                name
-                                url_key
-                                url_path
-                                level
-                                breadcrumbs {{
-                                    category_id
-                                    category_name
-                                    category_url_path
-                                }}
-                            }}
-                            stock_status
-                            stock_availability {{
-                                in_stock
-                                in_stock_real
-                            }}
-                            media_gallery {{
-                                url
-                                label
-                                position
-                            }}
-                            price_range {{
-                                minimum_price {{
-                                    individual_price {{
-                                        net
-                                        gross
-                                        currency
-                                    }}
+                        }}
+                        stock_status
+                        stock_availability {{
+                            in_stock
+                            in_stock_real
+                        }}
+                        media_gallery {{
+                            url
+                            label
+                            position
+                        }}
+                        price_range {{
+                            minimum_price {{
+                                individual_price {{
+                                    net
+                                    gross
+                                    currency
                                 }}
                             }}
                         }}
                     }}
                 }}
-            ";
+            }}";
 
-            var result = await _client.ExecuteAsync<Dictionary<string, Dictionary<string, List<ProductsResponse>>>>(query, token);
+            var result =
+                await _client.ExecuteAsync<
+                    Dictionary<string, Dictionary<string, List<ProductsResponse>>>>(query, token);
 
-            if (result.TryGetValue("products", out var productSection) && productSection.TryGetValue("items", out var products))
+            if (result.TryGetValue("products", out var section) &&
+                section.TryGetValue("items", out var products))
             {
                 return products;
             }
 
-            Log.Warning("Unexpected GraphQL structure or empty data on page {Page}.", currentPage);
             return new List<ProductsResponse>();
         }
 
@@ -242,7 +294,7 @@ namespace AgroramiSyncService.Services
 
         private async Task<List<ProductDto>> BuildProductDtos(List<ProductsResponse> products)
         {
-            var result = new List<ProductDto>(products.Count);
+            var result = new List<ProductDto>();
 
             foreach (var product in products)
             {

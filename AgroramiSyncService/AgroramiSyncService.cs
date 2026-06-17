@@ -74,6 +74,11 @@ namespace AgroramiSyncService
             {
                 // 1. Getting info about products
                 var products = await _apiService.SyncProducts();
+                if (products == null || !products.Any())
+                {
+                    Log.Warning("No products retrieved from API.");
+                    return;
+                }
 
                 if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
                 {
@@ -136,7 +141,7 @@ namespace AgroramiSyncService
                 {
                     Log.Warning("Missing {Count} product codes", missingCodes.Count);
                     foreach (var code in missingCodes)
-                        Log.Warning("Missing: {Code}", code);
+                        Log.Warning("Product: {Code} is in import file but wasn't found in API", code);
                 }
 
                 // Step 5: Delete products not in the current import list

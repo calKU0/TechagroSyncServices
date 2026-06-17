@@ -14,7 +14,12 @@ namespace AgroramiSyncService.Services
 
         public GraphQLClient(string baseUrl)
         {
-            _client = new HttpClient { BaseAddress = new Uri(baseUrl) };
+            _client = new HttpClient
+            {
+                BaseAddress = new Uri(baseUrl),
+                Timeout = TimeSpan.FromMinutes(3)
+            };
+
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
