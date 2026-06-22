@@ -85,7 +85,6 @@ namespace GranitSyncService
 
                 // 2. Getting info about products
                 var productDtos = await _syncService.FetchProductStockAndPrices(allowedCodes);
-
                 var products = productDtos.Select(p => BuildHelper.BuildProductDto(p, defaultMargin, marginRanges)).ToList();
 
                 // 3. Delete products not in the current import list

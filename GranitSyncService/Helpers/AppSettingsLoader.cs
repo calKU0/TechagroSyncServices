@@ -32,9 +32,5 @@ namespace GranitSyncService.Helpers
         }
 
         public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
-
-        public static int GetFilesExpirationDays() => ConfigHelper.GetInt("FilesExpirationDays", 31);
-
-        public static string GetConnenctionString() => ConfigurationManager.ConnectionStrings["DefaultConnectionString"].ToString();
     }
 }
