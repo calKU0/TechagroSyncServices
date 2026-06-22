@@ -146,7 +146,7 @@ namespace AgroramiSyncService.Services
                     }}
                 }}";
 
-            var result = await _client.ExecuteAsync<Dictionary<string, CustomerTokenResponse>>(query);
+            var result = await _client.ExecuteWithRetryAsync<Dictionary<string, CustomerTokenResponse>>(query);
             return result["generateCustomerToken"].Token;
         }
 
@@ -219,8 +219,7 @@ namespace AgroramiSyncService.Services
             }}";
 
             var result =
-                await _client.ExecuteAsync<
-                    Dictionary<string, Dictionary<string, List<ProductsResponse>>>>(query, token);
+                await _client.ExecuteWithRetryAsync<Dictionary<string, Dictionary<string, List<ProductsResponse>>>>(query, token);
 
             if (result.TryGetValue("products", out var section) &&
                 section.TryGetValue("items", out var products))
@@ -254,7 +253,7 @@ namespace AgroramiSyncService.Services
                     }
                 }";
 
-            var result = await _client.ExecuteAsync<Dictionary<string, Dictionary<string, List<AttributeMetadataResponse>>>>(query, token);
+            var result = await _client.ExecuteWithRetryAsync<Dictionary<string, Dictionary<string, List<AttributeMetadataResponse>>>>(query, token);
 
             if (result.TryGetValue("customAttributeMetadata", out var metadataSection) && metadataSection.TryGetValue("items", out var attributes))
             {

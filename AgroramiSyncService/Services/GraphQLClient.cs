@@ -26,28 +26,64 @@ namespace AgroramiSyncService.Services
             };
         }
 
-        public async Task<T> ExecuteAsync<T>(string query, string token = null)
+        public async Task<T> ExecuteWithRetryAsync<T>(string query, string token = null)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, "graphql")
+            const int maxRetries = 3;
+
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
             {
-                Content = new StringContent(JsonSerializer.Serialize(new { query }), Encoding.UTF8, "application/json")
-            };
+                try
+                {
+                    var request = new HttpRequestMessage(HttpMethod.Post, "graphql")
+                    {
+                        Content = new StringContent(
+                            JsonSerializer.Serialize(new { query }),
+                            Encoding.UTF8,
+                            "application/json")
+                    };
 
-            if (!string.IsNullOrEmpty(token))
-                request.Headers.Add("Authorization", $"Bearer {token}");
+                    if (!string.IsNullOrEmpty(token))
+                        request.Headers.Add("Authorization", $"Bearer {token}");
 
-            var response = await _client.SendAsync(request);
-            var content = await response.Content.ReadAsStringAsync();
+                    var response = await _client.SendAsync(request);
+                    var content = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode)
-            {
-                Log.Error("GraphQL error: {Code} {Body}", response.StatusCode, content);
-                throw new HttpRequestException($"GraphQL query failed: {response.StatusCode}");
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Log.Error(
+                            "GraphQL error: {Code} {Body}",
+                            response.StatusCode,
+                            content);
+
+                        throw new HttpRequestException(
+                            $"GraphQL query failed: {response.StatusCode}");
+                    }
+
+                    using (var root = JsonDocument.Parse(content))
+                    {
+                        var dataElement = root.RootElement.GetProperty("data");
+
+                        return JsonSerializer.Deserialize<T>(
+                            dataElement.GetRawText(),
+                            _jsonOptions);
+                    }
+                }
+                catch (Exception ex) when (attempt < maxRetries)
+                {
+                    var delay = TimeSpan.FromMinutes(Math.Pow(2, attempt));
+
+                    Log.Warning(
+                        ex,
+                        "GraphQL request failed. Retrying in {Delay}. Attempt {Attempt}/{MaxRetries}",
+                        delay,
+                        attempt + 1,
+                        maxRetries);
+
+                    await Task.Delay(delay);
+                }
             }
 
-            var root = JsonDocument.Parse(content);
-            var dataElement = root.RootElement.GetProperty("data");
-            return JsonSerializer.Deserialize<T>(dataElement.ToString(), _jsonOptions);
+            throw new InvalidOperationException("Unexpected retry termination.");
         }
     }
 }

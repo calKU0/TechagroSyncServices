@@ -14,13 +14,13 @@ namespace AgroramiSyncService.DTOs
         public string Sku { get; set; }
 
         [JsonPropertyName("ean")]
-        public string Ean { get; set; } = "test";
+        public string Ean { get; set; }
 
         [JsonPropertyName("name")]
-        public string Name { get; set; } = "test";
+        public string Name { get; set; }
 
         [JsonPropertyName("catalog_number")]
-        public string CatalogNumber { get; set; } = "test";
+        public string CatalogNumber { get; set; }
 
         [JsonPropertyName("description")]
         public HtmlContent Description { get; set; } = new HtmlContent();
@@ -32,13 +32,13 @@ namespace AgroramiSyncService.DTOs
         public int? Manufacturer { get; set; }
 
         [JsonIgnore]
-        public string ManufacturerLabel { get; set; } = "test";
+        public string ManufacturerLabel { get; set; }
 
         [JsonPropertyName("weight")]
         public decimal? Weight { get; set; }
 
         [JsonPropertyName("stock_status")]
-        public string StockStatus { get; set; } = "test";
+        public string StockStatus { get; set; }
 
         [JsonPropertyName("stock_availability")]
         public StockAvailability StockAvailability { get; set; }
@@ -47,7 +47,7 @@ namespace AgroramiSyncService.DTOs
         public int? Unit { get; set; }
 
         [JsonIgnore]
-        public string UnitLabel { get; set; } = "test";
+        public string UnitLabel { get; set; }
 
         [JsonPropertyName("express_external_shipping_price")]
         public decimal? ExpressPrice { get; set; } = 0;
@@ -105,7 +105,7 @@ namespace AgroramiSyncService.DTOs
         public decimal Gross { get; set; } = 0;
 
         [JsonPropertyName("currency")]
-        public string Currency { get; set; } = "test";
+        public string Currency { get; set; }
     }
 
     public class Categories
