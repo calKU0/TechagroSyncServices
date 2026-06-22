@@ -35,6 +35,9 @@
     <None Update="Resources\gaska_logo.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\granit_logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\hermon_logo.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

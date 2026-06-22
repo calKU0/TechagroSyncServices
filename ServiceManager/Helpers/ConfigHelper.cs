@@ -60,6 +60,13 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "AgrobisApiKey", Label = "Klucz API", Group = "Agrobis API" , IsEnabled = false},
             new ConfigField { Key = "AgrobisApiProductsPerPage", Label = "Produkty na strone", Group = "Agrobis API" , IsEnabled = false},
 
+            // Granit API
+            new ConfigField { Key = "GranitApiBaseUrl", Label = "Adres API Granit", Group = "Granit API" , IsEnabled = false},
+            new ConfigField { Key = "GranitApiUsername", Label = "Użytkownik", Group = "Granit API" , IsEnabled = false},
+            new ConfigField { Key = "GranitApiPassword", Label = "Hasło", Group = "Granit API" , IsEnabled = false},
+            new ConfigField { Key = "GranitApiRequestInterval", Label = "Interwał odpytań", Group = "Granit API" , IsEnabled = false},
+            new ConfigField { Key = "GranitApiMaxProductsBatch", Label = "Produkty na strone", Group = "Granit API" , IsEnabled = false},
+
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },
