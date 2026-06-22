@@ -8,23 +8,23 @@ namespace TechagroSyncServices.Shared.DTOs
     {
         public int Id { get; set; }
         public string Code { get; set; }
-        public string TradingCode { get; set; } = "test";
-        public string Name { get; set; } = "test";
-        public string Ean { get; set; } = "test";
+        public string TradingCode { get; set; }
+        public string Name { get; set; }
+        public string Ean { get; set; }
         public decimal NetBuyPrice { get; set; } = 0;
         public decimal GrossBuyPrice { get; set; } = 0;
         public decimal NetSellPriceB { get; set; } = 0;
         public decimal GrossSellPriceB { get; set; } = 0;
-        public decimal? NetSellPriceC { get; set; } = 0;
-        public decimal? GrossSellPriceC { get; set; } = 0;
-        public string CategoriesString { get; set; } = "test";
+        public decimal? NetSellPriceC { get; set; }
+        public decimal? GrossSellPriceC { get; set; }
+        public string CategoriesString { get; set; }
         public decimal Vat { get; set; } = 0;
         public decimal Quantity { get; set; } = 0;
         public string Unit { get; set; } = "szt.";
         public decimal Weight { get; set; } = 0;
-        public string Brand { get; set; } = "test";
+        public string Brand { get; set; }
         public IntegrationCompany IntegrationCompany { get; set; }
-        public string Description { get; set; } = "test";
+        public string Description { get; set; }
         public List<ImageDto> Images { get; set; } = new List<ImageDto>();
     }
 }
