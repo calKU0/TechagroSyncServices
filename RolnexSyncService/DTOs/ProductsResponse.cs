@@ -18,9 +18,6 @@ namespace RolnexSyncService.DTOs
         [Name("name")]
         public string Name { get; set; }
 
-        [Name("model")]
-        public string Model { get; set; }
-
         [Name("desc")]
         public string Desc { get; set; }
 
