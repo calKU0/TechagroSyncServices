@@ -32,7 +32,7 @@ namespace RolnexSyncService.Helpers
                 Id = p.Id,
                 Code = "RL" + p.Id,
                 TradingCode = p.Sku,
-                Name = p.Name + " " + p.Id,
+                Name = p.Name + " " + p.Sku,
                 Quantity = p.Qty,
                 Description = descBuilder.ToString(),
                 CategoriesString = BuildCategoriesString(p.Categories),
