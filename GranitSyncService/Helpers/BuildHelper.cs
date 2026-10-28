@@ -23,8 +23,8 @@ namespace GranitSyncService.Helpers
                 NetBuyPrice = p.NetPrice ?? 0,
                 GrossBuyPrice = p.GrossPrice ?? 0,
 
-                NetSellPriceB = (p.NetPrice ?? 0) * ((applicableMargin / 100m) + 1),
-                GrossSellPriceB = (p.GrossPrice ?? 0) * ((applicableMargin / 100m) + 1),
+                NetSellPriceB = MarginHelper.ApplyMargin(p.NetPrice ?? 0, applicableMargin),
+                GrossSellPriceB = MarginHelper.ApplyMargin(p.GrossPrice ?? 0, applicableMargin),
 
                 Vat = 23,
 

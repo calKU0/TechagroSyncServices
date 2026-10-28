@@ -24,8 +24,8 @@ namespace HermonSyncService.Services
         {
             var apiSettings = AppSettingsLoader.LoadApiSettings();
             _apiClient = new HermonApiClient(apiSettings);
-            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
-            _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
         public async Task<List<FtpProducts>> SyncProductsFromFtp()
@@ -196,8 +196,8 @@ namespace HermonSyncService.Services
                     Quantity = totalQuantity,
                     NetBuyPrice = detail.ClientPrice.NetPrice,
                     GrossBuyPrice = detail.ClientPrice.GrossPrice,
-                    NetSellPriceB = detail.ClientPrice.NetPrice * ((applicableMargin / 100m) + 1),
-                    GrossSellPriceB = detail.ClientPrice.GrossPrice * ((applicableMargin / 100m) + 1),
+                    NetSellPriceB = MarginHelper.ApplyMargin(detail.ClientPrice.NetPrice, applicableMargin),
+                    GrossSellPriceB = MarginHelper.ApplyMargin(detail.ClientPrice.GrossPrice, applicableMargin),
                     Vat = detail.ClientPrice != null ? detail.ClientPrice.TaxRate : 0,
                     Weight = ftpProduct.Weight ?? 0,
                     Brand = detail.ProducerName,

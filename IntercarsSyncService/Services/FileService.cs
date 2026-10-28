@@ -35,8 +35,8 @@ namespace IntercarsSyncService.Services
             _emailService = emailService;
             _httpClient = httpClient;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
-            _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -115,7 +115,7 @@ namespace IntercarsSyncService.Services
                 if (newProducts.Any())
                 {
                     // Step 5.2: Send notification email about new products
-                    var to = AppSettingsLoader.GetEmailsToNotify();
+                    var to = CommonSettingsLoader.GetEmailsToNotify();
                     await BatchEmailNotifier.SendAsync(
                         newProducts,
                         100,
@@ -133,7 +133,7 @@ namespace IntercarsSyncService.Services
                     Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
 
                     // Step 5.4: Clean old snapshots
-                    var daysToKeep = AppSettingsLoader.GetFilesExpirationDays();
+                    var daysToKeep = CommonSettingsLoader.GetFilesExpirationDays();
                     SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
                 }
                 else

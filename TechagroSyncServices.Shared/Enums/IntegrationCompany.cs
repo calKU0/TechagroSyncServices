@@ -12,5 +12,6 @@
         ROLNEX = 8,
         AGROBIS = 9,
         GRANIT = 10,
+        KRAMP = 11,
     }
 }

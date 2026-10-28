@@ -52,6 +52,36 @@ namespace TechagroSyncServices.Shared.Helpers
             }
         }
 
+        public static T ReadJson<T>(string filePath) where T : new()
+        {
+            if (!File.Exists(filePath) || new FileInfo(filePath).Length == 0)
+                return new T();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var result = JsonSerializer.Deserialize<T>(File.ReadAllText(filePath), options);
+            return result == null ? new T() : result;
+        }
+
+        // Writes to a temp file first, so a crash never leaves a half-written file
+        public static void WriteJson<T>(string filePath, T data)
+        {
+            var directory = Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
+            var tempPath = filePath + ".tmp";
+            File.WriteAllText(tempPath, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
+
+            if (File.Exists(filePath))
+                File.Replace(tempPath, filePath, null);
+            else
+                File.Move(tempPath, filePath);
+        }
+
         public static List<string> ReadImportList(string filePath)
         {
             if (!File.Exists(filePath))

@@ -25,7 +25,7 @@ namespace ServiceManager.Helpers
 
             // Agroland API
             new ConfigField { Key = "AgrolandApiBaseUrl", Label = "Adres API Agroland", Group = "Agroland API" , IsEnabled = false},
-            new ConfigField { Key = "AgrolandApiKey", Label = "Klucz API", Group = "Intercars API" , IsEnabled = false},
+            new ConfigField { Key = "AgrolandApiKey", Label = "Klucz API", Group = "Agroland API" , IsEnabled = false},
 
             // Amaparts API
             new ConfigField { Key = "ApiBaseUrl", Label = "Adres API Amaparts", Group = "Amaparts API" , IsEnabled = false},
@@ -56,7 +56,7 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "RolnexApiKey", Label = "Klucz API", Group = "Rolnex API" , IsEnabled = false},
 
             // Agrobis API
-            new ConfigField { Key = "AgrobisApiBaseUrl", Label = "Adres API Rolnex", Group = "Agrobis API" , IsEnabled = false},
+            new ConfigField { Key = "AgrobisApiBaseUrl", Label = "Adres API Agrobis", Group = "Agrobis API" , IsEnabled = false},
             new ConfigField { Key = "AgrobisApiKey", Label = "Klucz API", Group = "Agrobis API" , IsEnabled = false},
             new ConfigField { Key = "AgrobisApiProductsPerPage", Label = "Produkty na strone", Group = "Agrobis API" , IsEnabled = false},
 
@@ -66,6 +66,15 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "GranitApiPassword", Label = "Hasło", Group = "Granit API" , IsEnabled = false},
             new ConfigField { Key = "GranitApiRequestInterval", Label = "Interwał odpytań", Group = "Granit API" , IsEnabled = false},
             new ConfigField { Key = "GranitApiMaxProductsBatch", Label = "Produkty na strone", Group = "Granit API" , IsEnabled = false},
+
+            // Kramp API
+            new ConfigField { Key = "KrampApiBaseUrl", Label = "Adres API Kramp", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiUsername", Label = "Użytkownik", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiPassword", Label = "Hasło", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiCustomerNumber", Label = "Numer klienta", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiDailyRequestsLimit", Label = "Dzienny limit zapytań", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiAtpRequestedQuantity", Label = "Ilość w zapytaniu o stany", Group = "Kramp API" , IsEnabled = false},
+            new ConfigField { Key = "KrampApiPricesRefreshHours", Label = "Odświeżanie cen (godz.)", Group = "Kramp API" , IsEnabled = false},
 
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },

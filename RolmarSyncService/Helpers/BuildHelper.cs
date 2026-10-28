@@ -57,8 +57,8 @@ namespace RolmarSyncService.Helpers
                     Ean = p.Ean,
                     NetBuyPrice = price,
                     GrossBuyPrice = price * 1.23m,
-                    NetSellPriceB = price * ((applicableMargin / 100m) + 1),
-                    GrossSellPriceB = price * 1.23m * ((applicableMargin / 100m) + 1),
+                    NetSellPriceB = MarginHelper.ApplyMargin(price, applicableMargin),
+                    GrossSellPriceB = MarginHelper.ApplyMargin(price * 1.23m, applicableMargin),
                     CategoriesString = p.Categories != null
                     ? string.Join("|",
                         p.Categories.Select(c =>

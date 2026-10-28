@@ -41,8 +41,8 @@ namespace RolnexSyncService.Helpers
                 NetBuyPrice = p.PriceAfterDiscountNet,
                 GrossBuyPrice = p.PriceAfterDiscountNet * (1 + (p.Vat / 100m)),
 
-                NetSellPriceB = p.PriceAfterDiscountNet * ((applicableMargin / 100m) + 1),
-                GrossSellPriceB = p.PriceAfterDiscountNet * (1 + (p.Vat / 100m)) * ((applicableMargin / 100m) + 1),
+                NetSellPriceB = MarginHelper.ApplyMargin(p.PriceAfterDiscountNet, applicableMargin),
+                GrossSellPriceB = MarginHelper.ApplyMargin(p.PriceAfterDiscountNet * (1 + (p.Vat / 100m)), applicableMargin),
 
                 Vat = p.Vat,
                 Weight = p.Weight,

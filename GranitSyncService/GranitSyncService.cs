@@ -6,33 +6,22 @@ using Serilog;
 using System;
 using System.IO;
 using System.Linq;
-using System.ServiceProcess;
-using System.Threading;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace GranitSyncService
 {
-    public partial class GranitSyncService : ServiceBase
+    public partial class GranitSyncService : SyncServiceBase
     {
-        private readonly TimeSpan _interval;
-
         // Services
         private readonly SyncService _syncService;
         private readonly IProductSyncService _productSyncService;
 
-        private Timer _timer;
-
         public GranitSyncService()
         {
-            int logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();
-            LogConfig.Configure(logsExpirationDays);
-
-            _interval = AppSettingsLoader.GetFetchInterval();
-
             // Repositories
             string connectionString = ConfigHelper.GetConnenctionString();
             var productRepository = new ProductRepository(connectionString);
@@ -47,63 +36,31 @@ namespace GranitSyncService
             InitializeComponent();
         }
 
-        protected override void OnStart(string[] args)
+        protected override async Task RunSyncAsync()
         {
-            _timer = new Timer(
-                async _ => await TimerTickAsync(),
-                null,
-                TimeSpan.Zero,
-                Timeout.InfiniteTimeSpan
-            );
+            // 1. Get AppSettings
+            var defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            var marginRanges = CommonSettingsLoader.GetMarginRanges();
 
-            Log.Information("Service started. First run immediately. Interval: {Interval}", _interval);
-        }
+            // 2. Filter by import list
+            var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
+            var allowedCodes = FileUtils.ReadImportList(importFilePath);
 
-        protected override void OnStop()
-        {
-            Log.Information("Service stopped.");
-            Log.CloseAndFlush();
-        }
-
-        private async Task TimerTickAsync()
-        {
-            try
+            if (!allowedCodes.Any())
             {
-                // 1. Get AppSettings
-                var defaultMargin = AppSettingsLoader.GetDefaultMargin();
-                var marginRanges = AppSettingsLoader.GetMarginRanges();
-
-                // 2. Filter by import list
-                var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
-                var allowedCodes = FileUtils.ReadImportList(importFilePath);
-
-                if (!allowedCodes.Any())
-                {
-                    Log.Warning("Import file is empty or missing. Aborting import");
-                    return;
-                }
-
-                // 2. Getting info about products
-                var productDtos = await _syncService.FetchProductStockAndPrices(allowedCodes);
-                var products = productDtos.Select(p => BuildHelper.BuildProductDto(p, defaultMargin, marginRanges)).ToList();
-
-                // 3. Delete products not in the current import list
-                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
-
-                // 4. Sync current products
-                await _productSyncService.SyncToDatabaseAsync(products);
+                Log.Warning("Import file is empty or missing. Aborting import");
+                return;
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error during API synchronization.");
-            }
-            finally
-            {
-                DateTime nextRun = DateTime.Now.AddHours(_interval.TotalHours);
-                _timer.Change(_interval, Timeout.InfiniteTimeSpan);
 
-                Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
-            }
+            // 2. Getting info about products
+            var productDtos = await _syncService.FetchProductStockAndPrices(allowedCodes);
+            var products = productDtos.Select(p => BuildHelper.BuildProductDto(p, defaultMargin, marginRanges)).ToList();
+
+            // 3. Delete products not in the current import list
+            await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
+
+            // 4. Sync current products
+            await _productSyncService.SyncToDatabaseAsync(products);
         }
     }
 }

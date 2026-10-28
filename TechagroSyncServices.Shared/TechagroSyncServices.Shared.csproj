@@ -83,6 +83,7 @@
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Security" />
+    <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Text.Encodings.Web, Version=10.0.0.8, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Text.Encodings.Web.10.0.8\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
@@ -111,6 +112,7 @@
     <Compile Include="Enums\IntegrationCompany.cs" />
     <Compile Include="Helpers\BatchEmailNotifier.cs" />
     <Compile Include="Helpers\CalculateMargin.cs" />
+    <Compile Include="Helpers\CommonSettingsLoader.cs" />
     <Compile Include="Helpers\ConfigHelper.cs" />
     <Compile Include="Helpers\DescriptionHelper.cs" />
     <Compile Include="Helpers\FileUtils.cs" />
@@ -127,6 +129,7 @@
     <Compile Include="Services\IProductSyncService.cs" />
     <Compile Include="Services\ISyncStateService.cs" />
     <Compile Include="Services\ProductSyncService.cs" />
+    <Compile Include="Services\SyncServiceBase.cs" />
     <Compile Include="Services\FileSyncStateService.cs" />
     <Compile Include="Settings\SmtpSettings.cs" />
   </ItemGroup>

@@ -40,8 +40,8 @@ namespace AgrobisSyncService.Helpers
                 NetBuyPrice = discountedPriceNet,
                 GrossBuyPrice = discountedPriceNet * 1.23m,
 
-                NetSellPriceB = discountedPriceNet * ((applicableMargin / 100m) + 1),
-                GrossSellPriceB = discountedPriceNet * 1.23m * ((applicableMargin / 100m) + 1),
+                NetSellPriceB = MarginHelper.ApplyMargin(discountedPriceNet, applicableMargin),
+                GrossSellPriceB = MarginHelper.ApplyMargin(discountedPriceNet * 1.23m, applicableMargin),
 
                 Vat = 23,
                 Weight = p.Weight,

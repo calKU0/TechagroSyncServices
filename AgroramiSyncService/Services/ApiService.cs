@@ -24,8 +24,8 @@ namespace AgroramiSyncService.Services
         public ApiService()
         {
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
-            _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            _marginRanges = CommonSettingsLoader.GetMarginRanges();
             _client = new GraphQLClient(_apiSettings.BaseUrl);
         }
 

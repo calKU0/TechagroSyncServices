@@ -30,8 +30,8 @@ namespace GaskaSyncService.Services
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
-            _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -98,8 +98,8 @@ namespace GaskaSyncService.Services
                                     Quantity = (decimal)apiProduct.InStock,
                                     NetBuyPrice = apiProduct.NetPrice,
                                     GrossBuyPrice = apiProduct.GrossPrice,
-                                    NetSellPriceB = apiProduct.NetPrice * ((applicableMargin / 100m) + 1),
-                                    GrossSellPriceB = apiProduct.GrossPrice * ((applicableMargin / 100m) + 1),
+                                    NetSellPriceB = MarginHelper.ApplyMargin(apiProduct.NetPrice, applicableMargin),
+                                    GrossSellPriceB = MarginHelper.ApplyMargin(apiProduct.GrossPrice, applicableMargin),
                                     Vat = 23,
                                     Weight = (decimal)apiProduct.GrossWeight,
                                     Brand = apiProduct.SupplierName,

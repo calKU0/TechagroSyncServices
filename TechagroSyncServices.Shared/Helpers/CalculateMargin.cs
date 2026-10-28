@@ -16,6 +16,8 @@ namespace TechagroSyncServices.Shared.Helpers
             return defaultMargin;
         }
 
+        public static decimal ApplyMargin(decimal price, decimal marginPercent) => price * (1 + (marginPercent / 100m));
+
         public static List<MarginRange> ParseMarginRanges(string raw)
         {
             var list = new List<MarginRange>();

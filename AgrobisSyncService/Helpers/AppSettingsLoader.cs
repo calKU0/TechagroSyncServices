@@ -1,10 +1,5 @@
 ﻿using AgrobisSyncService.Settings;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Settings;
 
 namespace AgrobisSyncService.Helpers
 {
@@ -20,32 +15,6 @@ namespace AgrobisSyncService.Helpers
             };
         }
 
-        public static SmtpSettings LoadSmtpSettings()
-        {
-            return new SmtpSettings
-            {
-                Host = ConfigHelper.GetString("SmtpHost"),
-                Port = ConfigHelper.GetInt("SmtpPort", 465),
-                User = ConfigHelper.GetString("SmtpUser"),
-                Password = ConfigHelper.GetString("SmtpPassword"),
-            };
-        }
-
-        public static int GetLogsExpirationDays() => ConfigHelper.GetInt("LogsExpirationDays", 14);
-        public static int GetFilesExpirationDays() => ConfigHelper.GetInt("FilesExpirationDays", 31);
-
-        public static decimal GetDefaultMargin() => ConfigHelper.GetDecimal("DefaultMargin", 25m);
-
-        public static List<MarginRange> GetMarginRanges()
-        {
-            string raw = ConfigurationManager.AppSettings["MarginRanges"] ?? "";
-            return MarginHelper.ParseMarginRanges(raw);
-        }
-
-        public static TimeSpan GetFetchInterval() => TimeSpan.FromMinutes(ConfigHelper.GetInt("FetchIntervalMinutes", 60));
-
-        public static decimal GetSupplierDiscount() => ConfigHelper.GetDecimal("DefaultMargin", 0m);
-
-        public static string GetEmailsToNotify() => ConfigHelper.GetString("EmailsToNotify");
+        public static decimal GetSupplierDiscount() => ConfigHelper.GetDecimal("SupplierDiscount", 0m);
     }
 }

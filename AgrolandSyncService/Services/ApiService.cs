@@ -30,8 +30,8 @@ namespace AgrolandSyncService.Services
         {
             _productRepo = productRepo;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
-            _defaultMargin = AppSettingsLoader.GetDefaultMargin();
-            _marginRanges = AppSettingsLoader.GetMarginRanges();
+            _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
+            _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
         public async Task SyncProducts()
@@ -77,8 +77,8 @@ namespace AgrolandSyncService.Services
                                 Quantity = apiProduct.Qty,
                                 NetBuyPrice = apiProduct.PriceAfterDiscountNet,
                                 GrossBuyPrice = (apiProduct.PriceAfterDiscountNet * 1.23m),
-                                NetSellPriceB = apiProduct.PriceAfterDiscountNet * ((applicableMargin / 100m) + 1),
-                                GrossSellPriceB = apiProduct.PriceAfterDiscountNet * 1.23m * ((applicableMargin / 100m) + 1),
+                                NetSellPriceB = MarginHelper.ApplyMargin(apiProduct.PriceAfterDiscountNet, applicableMargin),
+                                GrossSellPriceB = MarginHelper.ApplyMargin(apiProduct.PriceAfterDiscountNet * 1.23m, applicableMargin),
                                 Vat = apiProduct.Vat,
                                 Weight = apiProduct.Weight ?? 0,
                                 Brand = apiProduct.Brand?.Name,

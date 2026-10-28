@@ -2,38 +2,26 @@
 using GaskaSyncService.Services;
 using Serilog;
 using System;
-using System.ServiceProcess;
-using System.Threading;
 using System.Threading.Tasks;
 using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Logging;
 using TechagroSyncServices.Shared.Repositories;
+using TechagroSyncServices.Shared.Services;
 
 namespace GaskaSyncService
 {
-    public partial class GaskaApiService : ServiceBase
+    public partial class GaskaApiService : SyncServiceBase
     {
-        // Settings
-        private readonly TimeSpan _interval;
-
         // Repo
         private readonly IProductRepository _productRepository;
 
         // Services
         private readonly ApiService _apiService;
 
-        private Timer _timer;
         private DateTime _lastProductDetailsSyncDate = DateTime.MinValue;
         private DateTime _lastRunTime;
 
         public GaskaApiService()
         {
-            // Serilog configuration and initialization
-            int logsExpirationDays = AppSettingsLoader.GetLogsExpirationDays();
-            LogConfig.Configure(logsExpirationDays);
-
-            _interval = AppSettingsLoader.GetFetchInterval();
-
             // Repositories
             string connectionString = ConfigHelper.GetConnenctionString();
             _productRepository = new ProductRepository(connectionString);
@@ -44,53 +32,21 @@ namespace GaskaSyncService
             InitializeComponent();
         }
 
-        protected override void OnStart(string[] args)
+        protected override async Task RunSyncAsync()
         {
-            _timer = new Timer(
-                async _ => await TimerTickAsync(),
-                null,
-                TimeSpan.Zero,
-                Timeout.InfiniteTimeSpan
-            );
+            _lastRunTime = DateTime.Now;
 
-            Log.Information("Service started. First run immediately. Interval: {Interval}", _interval);
-        }
+            // 1. Getting default info about products
+            await _apiService.SyncProducts();
+            Log.Information("Basic product sync completed.");
 
-        protected override void OnStop()
-        {
-            Log.Information("Service stopped.");
-            Log.CloseAndFlush();
-        }
-
-        private async Task TimerTickAsync()
-        {
-            try
+            // 2.Getting detailed info about products that are not in db yet
+            if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 3 && DateTime.Now.Hour <= 8)
             {
-                _lastRunTime = DateTime.Now;
+                await _apiService.SyncProductDetails();
+                _lastProductDetailsSyncDate = DateTime.Today;
 
-                // 1. Getting default info about products
-                await _apiService.SyncProducts();
-                Log.Information("Basic product sync completed.");
-
-                // 2.Getting detailed info about products that are not in db yet
-                if (_lastProductDetailsSyncDate.Date < DateTime.Today && DateTime.Now.Hour >= 3 && DateTime.Now.Hour <= 8)
-                {
-                    await _apiService.SyncProductDetails();
-                    _lastProductDetailsSyncDate = DateTime.Today;
-
-                    Log.Information("Detailed product sync completed.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error during API synchronization.");
-            }
-            finally
-            {
-                DateTime nextRun = DateTime.Now.AddHours(_interval.TotalHours);
-                _timer.Change(_interval, Timeout.InfiniteTimeSpan);
-
-                Log.Information("All processes completed. Next run scheduled at: {NextRun}", nextRun);
+                Log.Information("Detailed product sync completed.");
             }
         }
     }
