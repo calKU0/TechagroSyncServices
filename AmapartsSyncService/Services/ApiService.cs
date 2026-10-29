@@ -36,7 +36,11 @@ namespace AmapartsSyncService.Services
             {
                 // 1. Trigger CSV generation for products
                 Log.Information($"Triggering product export. (This takes few minutes)");
-                await _client.GetAsync($"export.php?q={_apiSettings.ApiKey}");
+                using (var exportResponse = await _client.GetAsync($"export.php?q={_apiSettings.ApiKey}"))
+                {
+                    // Failed export leaves the CSV from a previous export, which must not be treated as the current offer
+                    exportResponse.EnsureSuccessStatusCode();
+                }
 
                 // 3. Fetch product CSV
                 List<ApiProductsResponse> productsDetails;
