@@ -30,7 +30,7 @@ namespace RolnexSyncService.Helpers
             var dto = new ProductDto
             {
                 Id = p.Id,
-                Code = "RL" + p.Id,
+                Code = ServiceConstants.CodePrefix.ToDatabaseCode(p.Id.ToString()),
                 TradingCode = p.Sku,
                 Name = p.Name + " " + p.Sku,
                 Quantity = p.Qty,

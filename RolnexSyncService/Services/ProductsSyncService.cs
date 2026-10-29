@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace RolnexSyncService.Services
 {
@@ -28,7 +29,8 @@ namespace RolnexSyncService.Services
             _client.Timeout = TimeSpan.FromMinutes(10);
         }
 
-        public async Task<List<ProductsResponse>> FetchProducts()
+        // Whole offer is a single CSV file, so any error means incomplete result
+        public async Task<FetchResult<ProductsResponse>> FetchProducts()
         {
             try
             {
@@ -49,12 +51,12 @@ namespace RolnexSyncService.Services
                     productsDetails = csv.GetRecords<ProductsResponse>().ToList();
                 }
 
-                return productsDetails;
+                return FetchResult<ProductsResponse>.Complete(productsDetails);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during product sync.");
-                return new List<ProductsResponse>();
+                return FetchResult<ProductsResponse>.Incomplete(new List<ProductsResponse>());
             }
         }
     }

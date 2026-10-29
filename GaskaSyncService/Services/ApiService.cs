@@ -13,6 +13,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TechagroApiSync.Shared.Enums;
+using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
 using TechagroSyncServices.Shared.Repositories;
@@ -21,20 +22,26 @@ namespace GaskaSyncService.Services
 {
     public class ApiService
     {
+        // API that keeps failing is treated as down, instead of requesting next pages forever
+        private const int MaxConsecutivePageErrors = 3;
+
         private readonly GaskaApiSettings _apiSettings;
         private readonly IProductRepository _productRepo;
+        private readonly IProductSyncService _productSyncService;
         private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
-        public ApiService(IProductRepository productRepo)
+        public ApiService(IProductRepository productRepo, IProductSyncService productSyncService)
         {
             _productRepo = productRepo;
+            _productSyncService = productSyncService;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
             _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
             _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
-        public async Task SyncProducts()
+        // Returns codes of all products returned by API, incomplete when any page failed
+        public async Task<FetchResult<string>> SyncProducts()
         {
             using (var client = new HttpClient())
             {
@@ -42,8 +49,9 @@ namespace GaskaSyncService.Services
 
                 int page = 1;
                 bool hasMore = true;
-                int productInserted = 0;
-                int productUpdated = 0;
+                var codes = new List<string>();
+                bool isComplete = true;
+                int consecutiveErrors = 0;
 
                 while (hasMore)
                 {
@@ -56,6 +64,11 @@ namespace GaskaSyncService.Services
                         if (!response.IsSuccessStatusCode)
                         {
                             Log.Error($"API error while fetching page {page}: {response.StatusCode}");
+                            isComplete = false;
+
+                            if (++consecutiveErrors >= MaxConsecutivePageErrors)
+                                break;
+
                             continue;
                         }
 
@@ -68,9 +81,13 @@ namespace GaskaSyncService.Services
                             break;
                         }
 
+                        consecutiveErrors = 0;
+                        codes.AddRange(apiResponse.Products.Select(p => p.CodeGaska));
+
                         Log.Information($"Got response with {apiResponse.Products.Count()} products.");
                         Log.Information($"Attempting to update {apiResponse.Products.Count()} products in database.");
 
+                        var products = new List<ProductDto>();
                         foreach (var apiProduct in apiResponse.Products)
                         {
                             try
@@ -107,28 +124,24 @@ namespace GaskaSyncService.Services
                                     IntegrationCompany = ServiceConstants.Company
                                 };
 
-                                int result = await _productRepo.UpsertProductAsync(dto);
-                                if (result == 1)
-                                {
-                                    productInserted++;
-                                    Log.Information($"Inserted product: Product Code = {apiProduct.CodeGaska}, Name = {apiProduct.Name}");
-                                }
-                                else if (result == 2)
-                                {
-                                    productUpdated++;
-                                    Log.Information($"Updated product: Product Code = {apiProduct.CodeGaska}, Name = {apiProduct.Name}");
-                                }
+                                products.Add(dto);
                             }
                             catch (Exception ex)
                             {
                                 Log.Error(ex, $"Failed to insert/update product {apiProduct.CodeGaska}");
                             }
                         }
+
+                        await _productSyncService.SyncToDatabaseAsync(products);
                         Log.Information($"Successfully fetched and updated {apiResponse.Products.Count} products.");
                     }
                     catch (Exception ex)
                     {
                         Log.Error(ex, $"Error while getting products from page {page}.");
+                        isComplete = false;
+
+                        if (++consecutiveErrors >= MaxConsecutivePageErrors)
+                            break;
                     }
                     finally
                     {
@@ -136,7 +149,8 @@ namespace GaskaSyncService.Services
                         await Task.Delay(TimeSpan.FromSeconds(_apiSettings.ProductsInterval));
                     }
                 }
-                Log.Information("Products imported: {Total}, Inserted: {Inserted}, Updated: {Updated}", productInserted + productUpdated, productInserted, productUpdated);
+
+                return isComplete ? FetchResult<string>.Complete(codes) : FetchResult<string>.Incomplete(codes);
             }
         }
 

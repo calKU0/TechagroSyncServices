@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace GranitSyncService.Services
 {
@@ -20,7 +21,8 @@ namespace GranitSyncService.Services
             _apiSettings = apiSettings;
         }
 
-        public async Task<List<GranitItem>> FetchProductStockAndPrices(List<string> codes)
+        // Fetch stops at the first error, so the result is then incomplete
+        public async Task<FetchResult<GranitItem>> FetchProductStockAndPrices(List<string> codes)
         {
             var granitItems = new List<GranitItem>();
 
@@ -47,9 +49,10 @@ namespace GranitSyncService.Services
             catch (Exception ex)
             {
                 Log.Error(ex, "Error when fetching products stock and prices.");
+                return FetchResult<GranitItem>.Incomplete(granitItems);
             }
 
-            return granitItems;
+            return FetchResult<GranitItem>.Complete(granitItems);
         }
     }
 }

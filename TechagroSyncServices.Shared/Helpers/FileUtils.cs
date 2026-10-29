@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace TechagroSyncServices.Shared.Helpers
 {
@@ -92,6 +93,25 @@ namespace TechagroSyncServices.Shared.Helpers
                        .Where(line => !string.IsNullOrWhiteSpace(line))
                        .Distinct(StringComparer.OrdinalIgnoreCase)
                        .ToList();
+        }
+
+        // Reads import list accepting codes written both with and without supplier affix (suffix or prefix).
+        // Supplier code that naturally ends (or starts) with the affix has to be written with the affix.
+        // Optional normalizer adjusts supplier code to the format required by supplier API (e.g. upper case).
+        public static List<ImportCode> ReadImportCodes(string filePath, ProductCodeAffix affix, Func<string, string> normalizeSupplierCode = null)
+        {
+            return ReadImportList(filePath)
+                .Select(affix.Remove)
+                .Select(supplierCode => normalizeSupplierCode == null ? supplierCode : normalizeSupplierCode(supplierCode))
+                .Select(supplierCode => new ImportCode
+                {
+                    SupplierCode = supplierCode,
+                    DatabaseCode = affix.ToDatabaseCode(supplierCode)
+                })
+                // "SN 001" and "SN 001HF" are the same product
+                .GroupBy(code => code.DatabaseCode, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
         }
     }
 }

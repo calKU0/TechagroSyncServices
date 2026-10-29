@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Media;
 
-namespace ServiceManager.Helpers
+namespace TechagroSyncServices.Manager.Helpers
 {
     public static class FindVisualChilds
     {

@@ -102,6 +102,8 @@
     <Compile Include="Constants\ServiceConstants.cs" />
     <Compile Include="DTOs\AttributeMetadataResponse.cs" />
     <Compile Include="DTOs\CustomerTokenResponse.cs" />
+    <Compile Include="DTOs\NewProductsCheckState.cs" />
+    <Compile Include="DTOs\ProductsPage.cs" />
     <Compile Include="DTOs\ProductsResponse.cs" />
     <Compile Include="Helpers\AppSettingsLoader.cs" />
     <Compile Include="Helpers\FlexibleDateTimeConverter.cs" />

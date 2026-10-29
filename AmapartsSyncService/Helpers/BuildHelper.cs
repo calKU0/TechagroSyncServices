@@ -20,7 +20,8 @@ namespace AmapartsSyncService.Helpers
             var dto = new ProductDto
             {
                 Id = 0,
-                Code = p.ProductCode,
+                // Some codes in Ama-parts CSV have leading/trailing spaces, import list codes are trimmed
+                Code = p.ProductCode?.Trim(),
                 Ean = null,
                 Name = p.ProductName,
                 Quantity = p.StockQuantity,

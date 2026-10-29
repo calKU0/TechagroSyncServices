@@ -13,5 +13,6 @@
         AGROBIS = 9,
         GRANIT = 10,
         KRAMP = 11,
+        HIFI = 12,
     }
 }

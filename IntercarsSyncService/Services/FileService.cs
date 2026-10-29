@@ -24,6 +24,7 @@ namespace IntercarsSyncService.Services
     {
         private readonly IntercarsApiSettings _apiSettings;
         private readonly IEmailService _emailService;
+        private readonly NewProductsNotifier _newProductsNotifier;
         private readonly IProductSyncService _productSyncService;
         private readonly HttpClient _httpClient;
         private readonly decimal _defaultMargin;
@@ -33,6 +34,7 @@ namespace IntercarsSyncService.Services
         {
             _productSyncService = productSyncService;
             _emailService = emailService;
+            _newProductsNotifier = new NewProductsNotifier(_emailService, "Intercars", emailSupplierName: "Inter Cars");
             _httpClient = httpClient;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
             _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
@@ -105,45 +107,8 @@ namespace IntercarsSyncService.Services
                 imageIndex.Clear();
                 images = null;
 
-                // Step 5.1: Detect newly added products
-                var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Export");
-                var newProductsFolder = Path.Combine(exportPath, "Nowe");
-                var newProductsFileName = $"nowe-produkty-{DateTime.Today.ToString("dd-MM-yyyy")}.csv";
-                var snapshotPath = Path.Combine(exportPath, $"products.json");
-                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, fullProducts, p => p.Code);
-
-                if (newProducts.Any())
-                {
-                    // Step 5.2: Send notification email about new products
-                    var to = CommonSettingsLoader.GetEmailsToNotify();
-                    await BatchEmailNotifier.SendAsync(
-                        newProducts,
-                        100,
-                        batch => $"Nowe produkty Intercars ({newProducts.Count})",
-                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Inter Cars"),
-                        recipients: to,
-                        from: "Intercars Sync Service",
-                        emailService: _emailService);
-
-
-                    Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
-
-                    // Step 5.3: Save CSV snapshot of new products
-                    var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
-                    Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
-
-                    // Step 5.4: Clean old snapshots
-                    var daysToKeep = CommonSettingsLoader.GetFilesExpirationDays();
-                    SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
-                }
-                else
-                {
-                    Log.Information("No new products detected.");
-                }
-
-                // Step 6: Export to JSON
-                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, fullProducts);
-                Log.Information("JSON file created at {Path}", snapshotPath);
+                // Step 5: Report new products (errors never stop the sync)
+                await _newProductsNotifier.DetectAndNotifyAsync(fullProducts, true);
 
                 // Step 7: Filter by import list
                 var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Import", "numery_katalogowe.txt");
@@ -156,6 +121,7 @@ namespace IntercarsSyncService.Services
                     return;
                 }
 
+                var fetchedCodes = fullProducts.Select(p => p.Code).ToList();
                 fullProducts = ImportFilterHelper.FilterByAllowedCodes(fullProducts, allowedCodes, p => p.Code, out var missingCodes).ToList();
 
                 if (missingCodes.Any())
@@ -165,8 +131,9 @@ namespace IntercarsSyncService.Services
                         Log.Warning("Missing: {Code}", code);
                 }
 
-                // Step 8.1: Delete products not in the current import list
-                await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
+                // Step 8.1: Delete products not in the current import list or no longer returned by API.
+                // Every file download error aborts the sync above, so here the data is complete.
+                await _productSyncService.DeleteNotSyncedProducts(ServiceConstants.Company, allowedCodes, fetchedCodes, true);
 
                 // Step 8.2: Sync current products
                 await _productSyncService.SyncToDatabaseAsync(fullProducts);

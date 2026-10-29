@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
 
@@ -26,5 +27,17 @@ namespace TechagroSyncServices.Shared.DTOs
         public IntegrationCompany IntegrationCompany { get; set; }
         public string Description { get; set; }
         public List<ImageDto> Images { get; set; } = new List<ImageDto>();
+
+        // Suppliers without product data (e.g. Kramp, Granit, HiFi) send the code as name.
+        // Such name is used only for new products and never overwrites a name filled in manually.
+        public bool HasOwnName()
+        {
+            if (string.IsNullOrWhiteSpace(Name))
+                return false;
+
+            var name = Name.Trim();
+            return !string.Equals(name, Code, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(name, TradingCode, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 
-namespace ServiceManager.Helpers
+namespace TechagroSyncServices.Manager.Helpers
 {
     public static class LogFileReader
     {

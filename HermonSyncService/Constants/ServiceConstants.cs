@@ -1,4 +1,5 @@
 using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace HermonSyncService.Constants
 {
@@ -6,11 +7,10 @@ namespace HermonSyncService.Constants
     {
         public const IntegrationCompany Company = IntegrationCompany.HERMON;
 
+        // Catalogue codes in database: "<code>HR"
+        public static readonly ProductCodeSuffix CodeSuffix = new ProductCodeSuffix("HR");
+
         // Paths
-        public const string ExportFolder = "Export";
-        public const string NewProductsFolder = "Nowe";
         public const string ImportCodesFilePath = "Import/numery_katalogowe.txt";
-        public const string SnapshotFileName = "products.json";
-        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv"; // {0} = date
     }
 }

@@ -47,15 +47,17 @@ namespace HermonSyncService.Services
             return products;
         }
 
-        public List<FtpImage> SyncImagesFromFtp()
+        // Downloads images only for given products - images of other products are never saved to database
+        public List<FtpImage> SyncImagesFromFtp(IEnumerable<string> productCodes)
         {
             var images = new List<FtpImage>();
+            var codes = new HashSet<string>(productCodes, StringComparer.OrdinalIgnoreCase);
 
-            Log.Information("Starting image synchronization...");
+            Log.Information("Starting image synchronization for {Count} products...", codes.Count);
             var ftpSettings = AppSettingsLoader.LoadFtpSettings();
             using (HermonFtpClient ftpClient = new HermonFtpClient(ftpSettings))
             {
-                images = ftpClient.DownloadImages("/ZDJECIA");
+                images = ftpClient.DownloadImages("/ZDJECIA", file => codes.Contains(GetProductCodeFromFileName(file)));
             }
 
             if (!images.Any())
@@ -68,9 +70,11 @@ namespace HermonSyncService.Services
             return images;
         }
 
-        public async Task<List<ProductsDetailResponse>> FetchProductDetailsFromApi(IEnumerable<FtpProducts> products)
+        // Result is incomplete when authentication or any chunk failed
+        public async Task<FetchResult<ProductsDetailResponse>> FetchProductDetailsFromApi(IEnumerable<FtpProducts> products)
         {
             var allDetails = new List<ProductsDetailResponse>();
+            bool isComplete = true;
 
             Log.Information("Starting to fetch product details from API...");
 
@@ -78,7 +82,7 @@ namespace HermonSyncService.Services
             if (string.IsNullOrEmpty(token))
             {
                 Log.Warning("Authentication failed. Aborting sync.");
-                return null;
+                return FetchResult<ProductsDetailResponse>.Incomplete(allDetails);
             }
 
             var productCodes = products
@@ -93,6 +97,7 @@ namespace HermonSyncService.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     Log.Error("Failed to fetch product details. Status: {Status}", response.StatusCode);
+                    isComplete = false;
                     continue;
                 }
 
@@ -101,6 +106,7 @@ namespace HermonSyncService.Services
                 if (string.IsNullOrWhiteSpace(json))
                 {
                     Log.Warning("API returned empty response for this chunk.");
+                    isComplete = false;
                     continue;
                 }
 
@@ -116,6 +122,7 @@ namespace HermonSyncService.Services
                 catch (JsonException ex)
                 {
                     Log.Error(ex, "Failed to deserialize API response: {Json}", json);
+                    isComplete = false;
                     continue;
                 }
 
@@ -127,7 +134,7 @@ namespace HermonSyncService.Services
             }
             Log.Information("Product details fetch from API completed.");
 
-            return allDetails;
+            return isComplete ? FetchResult<ProductsDetailResponse>.Complete(allDetails) : FetchResult<ProductsDetailResponse>.Incomplete(allDetails);
         }
 
         private static IEnumerable<List<T>> Chunk<T>(IEnumerable<T> source, int size)
@@ -184,8 +191,7 @@ namespace HermonSyncService.Services
                     _defaultMargin,
                     _marginRanges);
 
-                string code = ftpProduct.Code + "HR";
-                string productCode = code.Length > 20 ? code.Substring(0, 20) : code;
+                string productCode = ServiceConstants.CodeSuffix.ToDatabaseCode(ftpProduct.Code);
 
                 result.Add(new ProductDto
                 {

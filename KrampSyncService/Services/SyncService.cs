@@ -13,8 +13,6 @@ namespace KrampSyncService.Services
 {
     public class SyncService
     {
-        private static readonly Regex AtpErrorSkuRegex = new Regex("<(?<sku>[^>]+)>", RegexOptions.Compiled);
-
         private readonly KrampApiClient _apiClient;
         private readonly RequestLimiter _limiter;
         private readonly KrampApiSettings _apiSettings;
@@ -85,6 +83,16 @@ namespace KrampSyncService.Services
                 .ToList();
         }
 
+        // SKUs for which Kramp answered without a price - Kramp no longer sells them.
+        // SKUs not refreshed yet or failed because of network errors are never returned here.
+        public List<string> GetMissingSkus()
+        {
+            return (_states ?? new Dictionary<string, ProductState>()).Values
+                .Where(s => s.PriceUpdatedAt != null && s.NetPrice == null)
+                .Select(s => s.Sku)
+                .ToList();
+        }
+
         private async Task RefreshInBatchesAsync(KrampEndpoint endpoint, List<string> candidates, int batchSize, Func<List<string>, Task<bool>> fetchBatch)
         {
             int remaining = _limiter.GetRemaining();
@@ -126,9 +134,10 @@ namespace KrampSyncService.Services
                 .GroupBy(a => a.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            // Errors about single SKUs contain the SKU in <>, anything else means the whole batch failed
+            // Errors about single SKUs mention the SKU (e.g. "entity with id <123> does not exist", "Please request delivery time for item : 123"),
+            // anything else means the whole batch failed
             var batchErrors = (response.Errors ?? new List<AtpError>())
-                .Where(e => !AtpErrorSkuRegex.IsMatch(e.ErrorMessage ?? ""))
+                .Where(e => !batch.Any(sku => MentionsSku(e.ErrorMessage, sku)))
                 .Select(e => e.ErrorMessage)
                 .ToList();
 
@@ -141,6 +150,13 @@ namespace KrampSyncService.Services
                 states[sku].Stock = atpBySku.TryGetValue(sku, out var atp) ? atp.AvailableQuantity : 0;
                 states[sku].StockUpdatedAt = now;
             }
+        }
+
+        // SKU as a separate word, so "123" is not found in "1234"
+        private static bool MentionsSku(string message, string sku)
+        {
+            return !string.IsNullOrEmpty(message)
+                && Regex.IsMatch(message, @"(?<![\w-])" + Regex.Escape(sku) + @"(?![\w-])", RegexOptions.IgnoreCase);
         }
 
         private static void ApplyPrices(Dictionary<string, ProductState> states, List<string> batch, List<PriceResponse> response)

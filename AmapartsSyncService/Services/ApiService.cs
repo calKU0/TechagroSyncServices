@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace AmapartsSyncService.Services
 {
@@ -28,13 +29,18 @@ namespace AmapartsSyncService.Services
             _client.Timeout = TimeSpan.FromMinutes(10);
         }
 
-        public async Task<List<ApiProductsResponse>> FetchProductsDetails()
+        // Whole offer is a single CSV file, so any error means incomplete result
+        public async Task<FetchResult<ApiProductsResponse>> FetchProductsDetails()
         {
             try
             {
                 // 1. Trigger CSV generation for products
                 Log.Information($"Triggering product export. (This takes few minutes)");
-                await _client.GetAsync($"export.php?q={_apiSettings.ApiKey}");
+                using (var exportResponse = await _client.GetAsync($"export.php?q={_apiSettings.ApiKey}"))
+                {
+                    // Failed export leaves the CSV from a previous export, which must not be treated as the current offer
+                    exportResponse.EnsureSuccessStatusCode();
+                }
 
                 // 3. Fetch product CSV
                 List<ApiProductsResponse> productsDetails;
@@ -50,12 +56,12 @@ namespace AmapartsSyncService.Services
                     productsDetails = csv.GetRecords<ApiProductsResponse>().ToList();
                 }
 
-                return productsDetails;
+                return FetchResult<ApiProductsResponse>.Complete(productsDetails);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during product sync.");
-                return new List<ApiProductsResponse>();
+                return FetchResult<ApiProductsResponse>.Incomplete(new List<ApiProductsResponse>());
             }
         }
 

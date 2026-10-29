@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace TechagroApiSync.Shared.Helpers
 {
@@ -8,13 +9,14 @@ namespace TechagroApiSync.Shared.Helpers
     {
         public static IReadOnlyList<T> FilterByAllowedCodes<T>(IReadOnlyList<T> source, IEnumerable<string> allowedCodes, Func<T, string> codeSelector, out IReadOnlyList<string> missingCodes)
         {
-            var allowedSet = new HashSet<string>(allowedCodes, StringComparer.OrdinalIgnoreCase);
+            // Codes compared the way they are saved in database, so a code longer than the column still matches its product
+            var allowedSet = new HashSet<string>(allowedCodes.Select(ProductCodeAffix.Normalize), StringComparer.OrdinalIgnoreCase);
             var filtered = new List<T>();
             var foundSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in source)
             {
-                var code = codeSelector(item) ?? string.Empty;
+                var code = ProductCodeAffix.Normalize(codeSelector(item));
 
                 if (allowedSet.Contains(code))
                 {

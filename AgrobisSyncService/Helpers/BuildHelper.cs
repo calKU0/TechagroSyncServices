@@ -28,7 +28,7 @@ namespace AgrobisSyncService.Helpers
             var dto = new ProductDto
             {
                 Id = p.Id,
-                Code = "AB" + p.Index.Trim(),
+                Code = ServiceConstants.CodePrefix.ToDatabaseCode(p.Index.Trim()),
                 TradingCode = p.Index.Trim(),
                 Ean = (p.Ean ?? string.Empty).Trim(),
                 Name = Regex.Replace((p.Name ?? string.Empty).Trim(), @"\s+", " "),
