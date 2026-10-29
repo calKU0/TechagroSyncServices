@@ -105,10 +105,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DTOs\FetchResult.cs" />
     <Compile Include="DTOs\ImageDto.cs" />
     <Compile Include="DTOs\MarginRange.cs" />
     <Compile Include="DTOs\ProductDto.cs" />
     <Compile Include="DTOs\SyncStateDto.cs" />
+    <Compile Include="DTOs\ImportCode.cs" />
     <Compile Include="Enums\IntegrationCompany.cs" />
     <Compile Include="Helpers\BatchEmailNotifier.cs" />
     <Compile Include="Helpers\CalculateMargin.cs" />
@@ -118,6 +120,10 @@
     <Compile Include="Helpers\FileUtils.cs" />
     <Compile Include="Helpers\HtmlHelper.cs" />
     <Compile Include="Helpers\ImportFilterHelper.cs" />
+    <Compile Include="Helpers\NewProductsNotifier.cs" />
+    <Compile Include="Helpers\ProductCodeAffix.cs" />
+    <Compile Include="Helpers\ProductCodePrefix.cs" />
+    <Compile Include="Helpers\ProductCodeSuffix.cs" />
     <Compile Include="Helpers\SnapshotChangeDetector.cs" />
     <Compile Include="Helpers\UnitHelpers.cs" />
     <Compile Include="Services\IEmailService.cs" />
@@ -127,22 +133,27 @@
     <Compile Include="Repositories\ProductRepository.cs" />
     <Compile Include="Services\EmailService.cs" />
     <Compile Include="Services\IProductSyncService.cs" />
+    <Compile Include="Services\MissingProductsTracker.cs" />
     <Compile Include="Services\ISyncStateService.cs" />
     <Compile Include="Services\ProductSyncService.cs" />
-    <Compile Include="Services\SyncServiceBase.cs" />
+    <Compile Include="Services\SyncServiceBase.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Services\FileSyncStateService.cs" />
+    <Compile Include="Settings\DeleteSafetySettings.cs" />
     <Compile Include="Settings\SmtpSettings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SQL\DeleteNotSyncedProducts.sql" />
+    <Content Include="SQL\GetProductCodes.sql" />
     <Content Include="SQL\GetProductsWithoutDescription.sql" />
     <Content Include="SQL\UpdateProductDescription.sql" />
     <Content Include="SQL\UpsertProduct.sql" />
     <Content Include="SQL\UpsertProductImage.sql" />
+    <Content Include="SQL\UpsertProducts.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Serilog.4.3.1\build\Serilog.targets" Condition="Exists('..\packages\Serilog.4.3.1\build\Serilog.targets')" />

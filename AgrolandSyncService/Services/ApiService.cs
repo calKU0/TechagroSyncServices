@@ -12,37 +12,36 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using TechagroApiSync.Shared.DTOs;
 using TechagroApiSync.Shared.Enums;
+using TechagroApiSync.Shared.Services;
 using TechagroSyncServices.Shared.DTOs;
 using TechagroSyncServices.Shared.Helpers;
-using TechagroSyncServices.Shared.Repositories;
 
 namespace AgrolandSyncService.Services
 {
     public class ApiService
     {
         private readonly AgrolandApiSettings _apiSettings;
-        private readonly IProductRepository _productRepo;
+        private readonly IProductSyncService _productSyncService;
         private readonly decimal _defaultMargin;
         private readonly List<MarginRange> _marginRanges;
 
-        public ApiService(IProductRepository productRepo)
+        public ApiService(IProductSyncService productSyncService)
         {
-            _productRepo = productRepo;
+            _productSyncService = productSyncService;
             _apiSettings = AppSettingsLoader.LoadApiSettings();
             _defaultMargin = CommonSettingsLoader.GetDefaultMargin();
             _marginRanges = CommonSettingsLoader.GetMarginRanges();
         }
 
-        public async Task SyncProducts()
+        // Returns codes of all products returned by API, incomplete when the request failed
+        public async Task<FetchResult<string>> SyncProducts()
         {
             using (var client = new HttpClient())
             {
                 try
                 {
-                    int productInserted = 0;
-                    int productUpdated = 0;
-
                     var url = $"{_apiSettings.BaseUrl}1/3/utf8/{_apiSettings.ApiKey}?stream=true";
                     Log.Information($"Sending request to {url}.");
                     var response = await client.GetAsync(url);
@@ -50,7 +49,7 @@ namespace AgrolandSyncService.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         Log.Error($"API error while fetching products: {response.StatusCode}");
-                        return;
+                        return FetchResult<string>.Incomplete(new List<string>());
                     }
                     var xml = await response.Content.ReadAsStringAsync();
 
@@ -62,7 +61,7 @@ namespace AgrolandSyncService.Services
                     }
 
                     Log.Information($"Got response with {apiResponse.ProductList.Count()} products.");
-                    Log.Information($"Attempting to update {apiResponse.ProductList.Count()} products in database.");
+                    var products = new List<ProductDto>();
                     foreach (var apiProduct in apiResponse.ProductList)
                     {
                         try
@@ -83,82 +82,49 @@ namespace AgrolandSyncService.Services
                                 Weight = apiProduct.Weight ?? 0,
                                 Brand = apiProduct.Brand?.Name,
                                 Unit = apiProduct.Unit,
+                                Description = BuildDescription(apiProduct),
+                                Images = apiProduct.Photos?
+                                    .Where(img => !string.IsNullOrEmpty(img.Url))
+                                    .Select(img => new ImageDto { Name = img.Id.ToString(), Url = img.Url })
+                                    .ToList() ?? new List<ImageDto>(),
                                 IntegrationCompany = ServiceConstants.Company
                             };
 
-                            int result = await _productRepo.UpsertProductAsync(dto);
-                            if (result == 1)
-                            {
-                                productInserted++;
-                                Log.Information($"Inserted product: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                            }
-                            else if (result == 2)
-                            {
-                                productUpdated++;
-                                Log.Information($"Updated product: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                            }
+                            products.Add(dto);
                         }
                         catch (Exception ex)
                         {
                             Log.Error(ex, $"Failed to update/insert product: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
                         }
-
-                        try
-                        {
-                            // 2. Upsert product description
-                            var opisBuilder = new StringBuilder();
-
-                            opisBuilder.Append("<h2>Opis produktu</h2>");
-
-                            if (!string.IsNullOrWhiteSpace(apiProduct.Desc))
-                                opisBuilder.Append($"<p>{apiProduct.Desc}</p>");
-
-                            if (apiProduct.Attributes?.Any(a => !string.IsNullOrWhiteSpace(a)) == true)
-                                opisBuilder.Append("<p><b>Parametry: </b>")
-                                           .Append(string.Join(", ", apiProduct.Attributes.Where(a => !string.IsNullOrWhiteSpace(a))))
-                                           .Append("</p>");
-
-                            string nowyOpis = DescriptionHelper.TruncateHtml(opisBuilder.ToString(), 1000);
-
-                            await _productRepo.UpdateProductDescriptionAsync(apiProduct.Ean, nowyOpis);
-                            Log.Information($"Updated product description: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, $"Failed to update/insert product description: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                        }
-
-                        try
-                        {
-                            // 3. Upsert images
-                            if (apiProduct.Photos != null)
-                            {
-                                foreach (var img in apiProduct.Photos)
-                                {
-                                    if (string.IsNullOrEmpty(img.Url)) continue;
-
-                                    byte[] imageData = await client.GetByteArrayAsync(img.Url);
-                                    await _productRepo.UpsertProductImageAsync(apiProduct.Ean, img.Id.ToString() ?? "image", imageData);
-                                    Log.Information($"Updated product image: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                                }
-                            }
-                        }
-                        catch (HttpRequestException httpEx)
-                        {
-                            Log.Error(httpEx, $"Failed to download product image: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, $"Failed to update/insert product image: Product EAN = {apiProduct.Ean}, Name = {apiProduct.Name}");
-                        }
                     }
-                    Log.Information("Products imported: {Total} out of {ToUpdate}, Inserted: {Inserted}, Updated: {Updated}", productInserted + productUpdated, apiResponse.ProductList.Count(), productInserted, productUpdated);
+
+                    await _productSyncService.SyncToDatabaseAsync(products);
+
+                    var codes = apiResponse.ProductList.Select(p => p.Ean).Where(code => !string.IsNullOrWhiteSpace(code)).ToList();
+                    return FetchResult<string>.Complete(codes);
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex, $"Error while fetching products");
+                    return FetchResult<string>.Incomplete(new List<string>());
                 }
             }
+        }
+
+        // Description without header - ProductSyncService adds it. Null when supplier has no description.
+        private static string BuildDescription(Product apiProduct)
+        {
+            var opisBuilder = new StringBuilder();
+
+            if (!string.IsNullOrWhiteSpace(apiProduct.Desc))
+                opisBuilder.Append($"<p>{apiProduct.Desc}</p>");
+
+            if (apiProduct.Attributes?.Any(a => !string.IsNullOrWhiteSpace(a)) == true)
+                opisBuilder.Append("<p><b>Parametry: </b>")
+                           .Append(string.Join(", ", apiProduct.Attributes.Where(a => !string.IsNullOrWhiteSpace(a))))
+                           .Append("</p>");
+
+            return opisBuilder.Length > 0 ? opisBuilder.ToString() : null;
         }
     }
 }

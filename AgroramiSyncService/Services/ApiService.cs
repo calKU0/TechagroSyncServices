@@ -29,109 +29,109 @@ namespace AgroramiSyncService.Services
             _client = new GraphQLClient(_apiSettings.BaseUrl);
         }
 
-        public async Task<List<ProductDto>> SyncProducts()
+        // Products from import list, fetched by SKU - a run takes minutes instead of scanning the whole offer (over 600k products).
+        // Result is incomplete when any batch failed. SKUs not returned in a successful batch are no longer offered.
+        public async Task<FetchResult<ProductDto>> FetchProductsBySkusAsync(IReadOnlyList<string> skus)
         {
             try
             {
-                Log.Information("Starting product synchronization...");
+                Log.Information("Fetching {Count} products from import list...", skus.Count);
 
                 var token = await GetCustomerTokenAsync();
                 var allProducts = new List<ProductsResponse>();
+                bool isComplete = true;
 
-                DateTime start = new DateTime(2024, 1, 1);
-                DateTime end = DateTime.UtcNow;
-
-                TimeSpan windowSize = TimeSpan.FromDays(15);
-
-                int pageSize = 750;
-                int maxRetries = 3;
-
-                while (start < end)
+                for (int i = 0; i < skus.Count; i += ServiceConstants.SkuBatchSize)
                 {
-                    DateTime windowEnd = start.Add(windowSize);
-                    if (windowEnd > end)
-                        windowEnd = end;
+                    var batch = skus.Skip(i).Take(ServiceConstants.SkuBatchSize).ToList();
+                    var filter = $"sku: {{ in: {System.Text.Json.JsonSerializer.Serialize(batch)} }}";
 
-                    Log.Information("Processing window {Start} → {End}", start, windowEnd);
-
-                    int currentPage = 1;
-
-                    while (true)
+                    try
                     {
-                        try
-                        {
-                            var pageProducts = await GetProductsByDateRangeAsync(
-                                token,
-                                start,
-                                windowEnd,
-                                currentPage,
-                                pageSize
-                            );
+                        var batchProducts = (await GetProductsAsync(token, filter, 1, batch.Count)).Items;
+                        allProducts.AddRange(batchProducts);
 
-                            if (pageProducts == null || pageProducts.Count == 0)
-                                break;
-
-                            Log.Information(
-                                "Fetched {Count} products (window {Start}-{End}, page {Page})",
-                                pageProducts.Count,
-                                start,
-                                windowEnd,
-                                currentPage
-                            );
-
-                            allProducts.AddRange(pageProducts);
-
-                            currentPage++;
-
-                            await Task.Delay(1200);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Warning(ex,
-                                "Error in window {Start}-{End}, page {Page}",
-                                start,
-                                windowEnd,
-                                currentPage);
-
-                            maxRetries--;
-
-                            if (maxRetries <= 0)
-                            {
-                                Log.Error("Skipping window {Start}-{End}", start, windowEnd);
-                                break;
-                            }
-
-                            await Task.Delay(5000);
-                        }
+                        Log.Information("Fetched {Count}/{Requested} products (batch {Batch})", batchProducts.Count, batch.Count, i / ServiceConstants.SkuBatchSize + 1);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error while fetching products batch {Batch}. Products from this batch are skipped.", i / ServiceConstants.SkuBatchSize + 1);
+                        isComplete = false;
                     }
 
-                    // move to next window
-                    start = windowEnd.AddSeconds(1);
-                    maxRetries = 3;
+                    await Task.Delay(ServiceConstants.RequestDelayMs);
                 }
 
-                if (allProducts.Count == 0)
-                {
-                    Log.Warning("No products found.");
-                    return null;
-                }
-
-                var attributes = await GetAttributeMetadataAsync(token);
-
-                Log.Information("Mapping attribute labels...");
-                MapAttributeLabels(allProducts, attributes);
-
-                var products = await BuildProductDtos(allProducts);
-
-                Log.Information("Mapping completed. Prepared {Count} products.", products.Count);
-
-                return products;
+                var products = await MapProductsAsync(token, allProducts);
+                return isComplete ? FetchResult<ProductDto>.Complete(products) : FetchResult<ProductDto>.Incomplete(products);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during product synchronization");
-                return null;
+                return FetchResult<ProductDto>.Incomplete(new List<ProductDto>());
             }
+        }
+
+        // Products added to the offer since given time - used to report new products.
+        // Result is incomplete when any page failed, so no new product is missed.
+        public async Task<FetchResult<ProductDto>> FetchProductsCreatedSinceAsync(DateTime fromUtc, DateTime toUtc)
+        {
+            try
+            {
+                Log.Information("Fetching products created between {From} and {To} (UTC)...", fromUtc, toUtc);
+
+                var token = await GetCustomerTokenAsync();
+                var allProducts = new List<ProductsResponse>();
+                var filter = $@"created_at: {{ from: ""{fromUtc:yyyy-MM-dd HH:mm:ss}"", to: ""{toUtc:yyyy-MM-dd HH:mm:ss}"" }}";
+
+                // Pages are counted from total_count. API returns at most 300 000 products of a query - pages after that
+                // are empty without any error, so the result is checked against total_count.
+                int totalCount = 0;
+                for (int page = 1; ; page++)
+                {
+                    var productsPage = await GetProductsAsync(token, filter, page, ServiceConstants.PageSize);
+                    totalCount = productsPage.TotalCount;
+                    if (productsPage.Items.Count == 0)
+                        break;
+
+                    allProducts.AddRange(productsPage.Items);
+                    Log.Information("Fetched {Count} created products (page {Page}, {Total} in total)", productsPage.Items.Count, page, productsPage.TotalCount);
+
+                    if (page * ServiceConstants.PageSize >= productsPage.TotalCount)
+                        break;
+
+                    await Task.Delay(ServiceConstants.RequestDelayMs);
+                }
+
+                if (allProducts.Count < totalCount)
+                {
+                    Log.Warning("API returned {Count} of {Total} created products. New products will be checked again in next run.", allProducts.Count, totalCount);
+                    return FetchResult<ProductDto>.Incomplete(new List<ProductDto>());
+                }
+
+                return FetchResult<ProductDto>.Complete(await MapProductsAsync(token, allProducts));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error while fetching created products");
+                return FetchResult<ProductDto>.Incomplete(new List<ProductDto>());
+            }
+        }
+
+        private async Task<List<ProductDto>> MapProductsAsync(string token, List<ProductsResponse> apiProducts)
+        {
+            if (!apiProducts.Any())
+                return new List<ProductDto>();
+
+            var attributes = await GetAttributeMetadataAsync(token);
+
+            Log.Information("Mapping attribute labels...");
+            MapAttributeLabels(apiProducts, attributes);
+
+            var products = await BuildProductDtos(apiProducts);
+
+            Log.Information("Mapping completed. Prepared {Count} products.", products.Count);
+            return products;
         }
 
         private async Task<string> GetCustomerTokenAsync()
@@ -150,24 +150,21 @@ namespace AgroramiSyncService.Services
             return result["generateCustomerToken"].Token;
         }
 
-        private async Task<List<ProductsResponse>> GetProductsByDateRangeAsync(string token, DateTime from, DateTime to, int currentPage, int pageSize)
+        // filter - GraphQL product filter, always limited to the spare parts category
+        private async Task<ProductsPage> GetProductsAsync(string token, string filter, int currentPage, int pageSize)
         {
-            var fromStr = from.ToString("yyyy-MM-dd HH:mm:ss");
-            var toStr = to.ToString("yyyy-MM-dd HH:mm:ss");
 
             var query = $@"
             query Products {{
                 products(
                     filter: {{
-                        created_at: {{
-                            from: ""{fromStr}"",
-                            to: ""{toStr}""
-                        }}
+                        {filter}
                         category_id: {{ eq: ""4"" }}
                     }},
                     pageSize: {pageSize},
                     currentPage: {currentPage}
                 ) {{
+                    total_count
                     items {{
                         id
                         sku
@@ -218,16 +215,13 @@ namespace AgroramiSyncService.Services
                 }}
             }}";
 
-            var result =
-                await _client.ExecuteWithRetryAsync<Dictionary<string, Dictionary<string, List<ProductsResponse>>>>(query, token);
+            var result = await _client.ExecuteWithRetryAsync<Dictionary<string, ProductsPage>>(query, token);
 
-            if (result.TryGetValue("products", out var section) &&
-                section.TryGetValue("items", out var products))
-            {
-                return products;
-            }
+            // Response without products (e.g. GraphQL error) is an error, not an empty page - otherwise products would look removed
+            if (result == null || !result.TryGetValue("products", out var productsPage) || productsPage == null)
+                throw new InvalidOperationException("API response does not contain products.");
 
-            return new List<ProductsResponse>();
+            return productsPage;
         }
 
         private async Task<List<AttributeMetadataResponse>> GetAttributeMetadataAsync(string token)
@@ -308,11 +302,10 @@ namespace AgroramiSyncService.Services
                 bool hasExpress = expressPrice.HasValue;
                 hasExpress = hasExpress && expressPrice.Value > 0m;
 
-                // Kod bazowy + przycięcie do 20 znaków
-                var baseCodeRaw = product.Sku + "AR";
-                var baseCode = baseCodeRaw.Length > 20 ? baseCodeRaw.Substring(0, 20) : baseCodeRaw;
-                var expressCodeRaw = baseCodeRaw + "-EXP";
-                var expressCode = expressCodeRaw.Length > 20 ? expressCodeRaw.Substring(0, 20) : expressCodeRaw;
+                // Kod bazowy z zarostkiem + przycięcie do 20 znaków
+                var baseCodeRaw = ServiceConstants.CodeSuffix.Add(product.Sku);
+                var baseCode = ProductCodeAffix.Truncate(baseCodeRaw);
+                var expressCode = ProductCodeAffix.Truncate(baseCodeRaw + ServiceConstants.ExpressSuffix);
 
                 product.Sku = baseCode; // zachowujemy dotychczasowe użycie dla obrazów
                 product.Name = product.Name + " " + product.CatalogNumber;

@@ -1,4 +1,5 @@
-using TechagroApiSync.Shared.Enums;
+﻿using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace AgroramiSyncService.Constants
 {
@@ -6,11 +7,20 @@ namespace AgroramiSyncService.Constants
     {
         public const IntegrationCompany Company = IntegrationCompany.AGRORAMI;
 
+        // Catalogue codes in database: "<sku>AR"
+        public static readonly ProductCodeSuffix CodeSuffix = new ProductCodeSuffix("AR");
+
+        // Express shipping variant: "<sku>AR-EXP"
+        public const string ExpressSuffix = "-EXP";
+
+        // API
+        public const int SkuBatchSize = 100;
+        public const int PageSize = 750;
+        public const int RequestDelayMs = 1200;
+
         // Paths
-        public const string ExportFolder = "Export";
-        public const string NewProductsFolder = "Nowe";
         public const string ImportCodesFilePath = "Import/numery_katalogowe.txt";
-        public const string SnapshotFileName = "products.json";
-        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv"; // {0} = date
+        public const string NewProductsCheckFilePath = "Data/new-products-check.json";
+        public const string LegacySnapshotFilePath = "Export/products.json";
     }
 }

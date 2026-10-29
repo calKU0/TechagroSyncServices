@@ -1,0 +1,365 @@
+-- Batch version of UpsertProduct. Products are saved the same way, but with a few set based statements instead of
+-- a dozen queries per product, and rows are written only when something really changed.
+IF TYPE_ID('dbo.ProductUpsertList') IS NULL
+    CREATE TYPE dbo.ProductUpsertList AS TABLE
+    (
+        RowNo INT NOT NULL PRIMARY KEY,
+        INDEKS_KATALOGOWY VARCHAR(20) NOT NULL,
+        INDEKS_HANDLOWY VARCHAR(20) NULL,
+        NAZWA NVARCHAR(255) NULL,
+        AKTUALIZUJ_NAZWE BIT NOT NULL,
+        STAN DECIMAL(18,6) NOT NULL,
+        KOD_KRESKOWY VARCHAR(1000) NULL,
+        CENA_ZAKUPU_BRUTTO DECIMAL(18,4) NOT NULL,
+        CENA_ZAKUPU_NETTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_BRUTTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_NETTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_BRUTTO_C DECIMAL(18,4) NULL,
+        CENA_SPRZEDAZY_NETTO_C DECIMAL(18,4) NULL,
+        VAT CHAR(3) NOT NULL,
+        WAGA DECIMAL(18,3) NULL,
+        PRODUCENT VARCHAR(50) NULL,
+        ID_PRODUCENTA INT NOT NULL,
+        UNIT VARCHAR(10) NULL,
+        CATEGORIES VARCHAR(1000) NULL,
+        INTEGRATION_COMPANY VARCHAR(50) NOT NULL,
+        OPIS NVARCHAR(MAX) NULL
+    );
+GO
+CREATE OR ALTER PROCEDURE dbo.UpsertProducts
+(
+    @Products dbo.ProductUpsertList READONLY,
+    @ID_MAGAZYNU INT = 6,
+    @ID_MAGAZYNUGLOWNEGO INT = 1,
+    @ID_KATEGORII INT = 1,
+    @ID_CENY_DOM INT = 2,
+    @ID_CENY_DOM_GLOWNY INT = 1,
+    @ILOSC_EDYTOWANA DECIMAL(18,6) = 0,
+    @OD_DOSTAWCOW DECIMAL(18,6) = 0,
+    @DO_ODBIORCOW DECIMAL(18,6) = 0,
+    @RODZAJ VARCHAR(10) = 'Towar',
+    @OSTRZEZENIE VARCHAR(500) = NULL,
+    @POKAZUJ_OSTRZEZENIE BIT = 0,
+    @JED_WAGI VARCHAR(10) = 'kg',
+    @PODLEGA_RABATOWANIU BIT = 1,
+    @ID_KATEGORII_TREE INT = 1,
+    @LOKALIZACJA VARCHAR(30) = NULL,
+    @SEMAFOR INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- Any error rolls back the whole batch, the service then saves its products one by one
+    SET XACT_ABORT ON;
+
+    DECLARE @DATE INT = DATEDIFF(DAY, '1800-01-01', GETDATE());
+    DECLARE @MaxId INT;
+
+    -- Products prepared like parameters of UpsertProduct. Last row wins when a code is repeated.
+    CREATE TABLE #P
+    (
+        INDEKS_KATALOGOWY VARCHAR(20) COLLATE DATABASE_DEFAULT NOT NULL PRIMARY KEY,
+        RowNo INT NOT NULL,
+        INDEKS_HANDLOWY VARCHAR(20) COLLATE DATABASE_DEFAULT NULL,
+        NAZWA NVARCHAR(255) COLLATE DATABASE_DEFAULT NULL,
+        AKTUALIZUJ_NAZWE BIT NOT NULL,
+        STAN DECIMAL(18,6) NOT NULL,
+        KOD_KRESKOWY VARCHAR(1000) COLLATE DATABASE_DEFAULT NULL,
+        EAN VARCHAR(20) COLLATE DATABASE_DEFAULT NULL,
+        CENA_ZAKUPU_BRUTTO DECIMAL(18,4) NOT NULL,
+        CENA_ZAKUPU_NETTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_BRUTTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_NETTO DECIMAL(18,4) NOT NULL,
+        CENA_SPRZEDAZY_BRUTTO_C DECIMAL(18,4) NULL,
+        CENA_SPRZEDAZY_NETTO_C DECIMAL(18,4) NULL,
+        VAT CHAR(3) COLLATE DATABASE_DEFAULT NOT NULL,
+        WAGA DECIMAL(18,3) NULL,
+        PRODUCENT VARCHAR(50) COLLATE DATABASE_DEFAULT NULL,
+        UWAGI VARCHAR(1000) COLLATE DATABASE_DEFAULT NOT NULL,
+        POLE1 VARCHAR(100) COLLATE DATABASE_DEFAULT NOT NULL,
+        ID_JEDNOSTKI INT NOT NULL,
+        OPIS NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+        ID INT NULL,         -- product in warehouse @ID_MAGAZYNU
+        ID_GLOWNY INT NULL,  -- product in main warehouse
+        Result INT NOT NULL DEFAULT 0 -- 0 = nothing changed, 1 = inserted, 2 = updated
+    );
+
+    INSERT INTO #P (INDEKS_KATALOGOWY, RowNo, INDEKS_HANDLOWY, NAZWA, AKTUALIZUJ_NAZWE, STAN, KOD_KRESKOWY, EAN,
+        CENA_ZAKUPU_BRUTTO, CENA_ZAKUPU_NETTO, CENA_SPRZEDAZY_BRUTTO, CENA_SPRZEDAZY_NETTO, CENA_SPRZEDAZY_BRUTTO_C, CENA_SPRZEDAZY_NETTO_C,
+        VAT, WAGA, PRODUCENT, UWAGI, POLE1, ID_JEDNOSTKI, OPIS)
+    SELECT
+        p.INDEKS_KATALOGOWY, p.RowNo, p.INDEKS_HANDLOWY, p.NAZWA, p.AKTUALIZUJ_NAZWE, p.STAN, p.KOD_KRESKOWY,
+        -- First barcode from the list is the main one
+        CASE WHEN LTRIM(RTRIM(ISNULL(p.KOD_KRESKOWY, ''))) <> ''
+            THEN LEFT(LTRIM(RTRIM(CASE WHEN CHARINDEX(',', p.KOD_KRESKOWY) > 0 THEN SUBSTRING(p.KOD_KRESKOWY, 1, CHARINDEX(',', p.KOD_KRESKOWY) - 1) ELSE p.KOD_KRESKOWY END)), 20)
+        END,
+        p.CENA_ZAKUPU_BRUTTO, p.CENA_ZAKUPU_NETTO, p.CENA_SPRZEDAZY_BRUTTO, p.CENA_SPRZEDAZY_NETTO, p.CENA_SPRZEDAZY_BRUTTO_C, p.CENA_SPRZEDAZY_NETTO_C,
+        p.VAT, p.WAGA, p.PRODUCENT,
+        LEFT(REPLACE(ISNULL(p.CATEGORIES, ''), '|', CHAR(13) + CHAR(10)), 1000),
+        CAST(p.INTEGRATION_COMPANY + '-' + CAST(p.ID_PRODUCENTA AS VARCHAR(20)) AS VARCHAR(100)),
+        ISNULL(jm.ID_JEDNOSTKI, 1),
+        p.OPIS
+    FROM
+    (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY INDEKS_KATALOGOWY ORDER BY RowNo DESC) AS Nr
+        FROM @Products
+    ) p
+    OUTER APPLY
+    (
+        SELECT TOP 1 ISNULL(j.ID_JEDNOSTKI, 1) AS ID_JEDNOSTKI
+        FROM dbo.JEDNOSTKA j
+        WHERE j.SKROT = p.UNIT AND j.ARCHIWALNA = 0 AND j.WZORZEC_INNEJ = 0 AND j.ID_FIRMY = 1 AND j.ID_ARTYKULU IS NULL
+    ) jm
+    WHERE p.Nr = 1;
+
+    -- All barcodes from the lists. A barcode repeated in the batch goes to the first product, like in UpsertProduct.
+    CREATE TABLE #Eans
+    (
+        Ean VARCHAR(20) COLLATE DATABASE_DEFAULT NOT NULL PRIMARY KEY,
+        INDEKS_KATALOGOWY VARCHAR(20) COLLATE DATABASE_DEFAULT NOT NULL
+    );
+
+    INSERT INTO #Eans (Ean, INDEKS_KATALOGOWY)
+    SELECT e.Ean, e.INDEKS_KATALOGOWY
+    FROM
+    (
+        SELECT p.INDEKS_KATALOGOWY, s.Ean, ROW_NUMBER() OVER (PARTITION BY s.Ean ORDER BY p.RowNo) AS Nr
+        FROM #P p
+        CROSS APPLY (SELECT LTRIM(RTRIM([value])) AS Ean FROM STRING_SPLIT(p.KOD_KRESKOWY, ',')) s
+        WHERE s.Ean <> '' AND LEN(s.Ean) <= 20
+    ) e
+    WHERE e.Nr = 1;
+
+    -- IDs of changed rows, to tell updated products from the ones that did not change
+    CREATE TABLE #Changed (ID_ARTYKULU INT NOT NULL);
+    CREATE TABLE #PriceChanged (ID_ARTYKULU INT NOT NULL);
+    CREATE TABLE #New
+    (
+        ID_ARTYKULU INT NOT NULL PRIMARY KEY,
+        INDEKS_KATALOGOWY VARCHAR(20) COLLATE DATABASE_DEFAULT NOT NULL,
+        Glowny BIT NOT NULL
+    );
+    CREATE TABLE #Prices
+    (
+        ID_ARTYKULU INT NOT NULL,
+        ID_CENY INT NOT NULL,
+        CENA_NETTO DECIMAL(18,4) NULL,
+        CENA_BRUTTO DECIMAL(18,4) NULL,
+        PRIMARY KEY (ID_ARTYKULU, ID_CENY)
+    );
+
+    BEGIN TRANSACTION;
+
+    -- Services saving at the same time wait for each other instead of deadlocking on WAPRO triggers (shared tables like ART_ECR)
+    DECLARE @LockResult INT;
+    EXEC @LockResult = sp_getapplock @Resource = 'dbo.UpsertProducts', @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 300000;
+    IF @LockResult < 0
+        THROW 50001, 'Another service has been saving products for too long. Batch is not saved.', 1;
+
+    UPDATE p
+    SET ID = a.ID_ARTYKULU
+    FROM #P p
+    JOIN dbo.ARTYKUL a ON a.INDEKS_KATALOGOWY = p.INDEKS_KATALOGOWY AND a.ID_MAGAZYNU = @ID_MAGAZYNU;
+
+    UPDATE p
+    SET ID_GLOWNY = a.ID_ARTYKULU
+    FROM #P p
+    JOIN dbo.ARTYKUL a ON a.INDEKS_KATALOGOWY = p.INDEKS_KATALOGOWY AND a.ID_MAGAZYNU = @ID_MAGAZYNUGLOWNEGO;
+
+    -- 1. Update existing products in both warehouses. Main warehouse keeps its own stock.
+    -- Product data missing in supplier offer is kept, so it can be filled in manually.
+    UPDATE a
+    SET
+        NAZWA = v.NAZWA,
+        NAZWA_ORYG = v.NAZWA_ORYG,
+        NAZWA2 = v.NAZWA2,
+        KOD_KRESKOWY = v.KOD_KRESKOWY,
+        CENA_ZAKUPU_BRUTTO = v.CENA_ZAKUPU_BRUTTO,
+        CENA_ZAKUPU_NETTO = v.CENA_ZAKUPU_NETTO,
+        WAGA = v.WAGA,
+        ID_CENY_DOM = v.ID_CENY_DOM,
+        JED_WAGI = v.JED_WAGI,
+        NAZWA_INTRASTAT = v.NAZWA_INTRASTAT,
+        PRODUCENT = v.PRODUCENT,
+        UWAGI = v.UWAGI,
+        POLE1 = v.POLE1,
+        INDEKS_PRODUCENTA = v.INDEKS_PRODUCENTA,
+        INDEKS_HANDLOWY = v.INDEKS_HANDLOWY,
+        STAN = v.STAN,
+        VAT_ZAKUPU = v.VAT,
+        VAT_SPRZEDAZY = v.VAT
+    OUTPUT inserted.ID_ARTYKULU INTO #Changed (ID_ARTYKULU)
+    FROM #P p
+    CROSS APPLY (VALUES (p.ID, 0), (p.ID_GLOWNY, 1)) w (ID_ARTYKULU, Glowny)
+    JOIN dbo.ARTYKUL a ON a.ID_ARTYKULU = w.ID_ARTYKULU
+    CROSS APPLY
+    (
+        SELECT
+            CASE WHEN p.AKTUALIZUJ_NAZWE = 1 THEN LEFT(p.NAZWA, 40) ELSE a.NAZWA END AS NAZWA,
+            CASE WHEN p.AKTUALIZUJ_NAZWE = 1 THEN LEFT(p.NAZWA, 200) ELSE a.NAZWA_ORYG END AS NAZWA_ORYG,
+            CASE WHEN p.AKTUALIZUJ_NAZWE = 1 THEN LEFT(SUBSTRING(p.NAZWA, 41, LEN(p.NAZWA)), 190) ELSE a.NAZWA2 END AS NAZWA2,
+            ISNULL(NULLIF(p.EAN, ''), a.KOD_KRESKOWY) AS KOD_KRESKOWY,
+            p.CENA_ZAKUPU_BRUTTO,
+            p.CENA_ZAKUPU_NETTO,
+            ISNULL(p.WAGA, a.WAGA) AS WAGA,
+            CASE WHEN w.Glowny = 1 THEN @ID_CENY_DOM_GLOWNY ELSE @ID_CENY_DOM END AS ID_CENY_DOM,
+            CASE WHEN p.WAGA IS NULL THEN a.JED_WAGI ELSE @JED_WAGI END AS JED_WAGI,
+            CASE WHEN p.AKTUALIZUJ_NAZWE = 1 THEN LEFT(p.NAZWA, 250) ELSE a.NAZWA_INTRASTAT END AS NAZWA_INTRASTAT,
+            ISNULL(NULLIF(p.PRODUCENT, ''), a.PRODUCENT) AS PRODUCENT,
+            CASE WHEN p.UWAGI <> '' THEN p.UWAGI ELSE a.UWAGI END AS UWAGI,
+            p.POLE1,
+            p.INDEKS_KATALOGOWY AS INDEKS_PRODUCENTA,
+            ISNULL(NULLIF(p.INDEKS_HANDLOWY, ''), a.INDEKS_HANDLOWY) AS INDEKS_HANDLOWY,
+            CASE WHEN w.Glowny = 1 THEN a.STAN ELSE p.STAN END AS STAN,
+            p.VAT
+    ) v
+    -- Binary collation, so changes of letter case are saved too
+    WHERE EXISTS
+    (
+        SELECT v.NAZWA COLLATE Polish_BIN2, v.NAZWA_ORYG COLLATE Polish_BIN2, v.NAZWA2 COLLATE Polish_BIN2, v.KOD_KRESKOWY COLLATE Polish_BIN2,
+            v.CENA_ZAKUPU_BRUTTO, v.CENA_ZAKUPU_NETTO, v.WAGA, v.ID_CENY_DOM, v.JED_WAGI COLLATE Polish_BIN2, v.NAZWA_INTRASTAT COLLATE Polish_BIN2,
+            v.PRODUCENT COLLATE Polish_BIN2, v.UWAGI COLLATE Polish_BIN2, v.POLE1 COLLATE Polish_BIN2, v.INDEKS_PRODUCENTA COLLATE Polish_BIN2,
+            v.INDEKS_HANDLOWY COLLATE Polish_BIN2, v.STAN, v.VAT COLLATE Polish_BIN2, v.VAT COLLATE Polish_BIN2
+        EXCEPT
+        SELECT a.NAZWA COLLATE Polish_BIN2, a.NAZWA_ORYG COLLATE Polish_BIN2, a.NAZWA2 COLLATE Polish_BIN2, a.KOD_KRESKOWY COLLATE Polish_BIN2,
+            a.CENA_ZAKUPU_BRUTTO, a.CENA_ZAKUPU_NETTO, a.WAGA, a.ID_CENY_DOM, a.JED_WAGI COLLATE Polish_BIN2, a.NAZWA_INTRASTAT COLLATE Polish_BIN2,
+            a.PRODUCENT COLLATE Polish_BIN2, a.UWAGI COLLATE Polish_BIN2, a.POLE1 COLLATE Polish_BIN2, a.INDEKS_PRODUCENTA COLLATE Polish_BIN2,
+            a.INDEKS_HANDLOWY COLLATE Polish_BIN2, a.STAN, a.VAT_ZAKUPU COLLATE Polish_BIN2, a.VAT_SPRZEDAZY COLLATE Polish_BIN2
+    );
+
+    -- 2. Insert new products. New warehouse gets zero stock in main warehouse, like in UpsertProduct.
+    IF EXISTS (SELECT 1 FROM #P WHERE ID IS NULL OR ID_GLOWNY IS NULL)
+    BEGIN
+        -- Lock on the last ID is kept until commit, so concurrent services do not take the same IDs
+        SELECT @MaxId = ISNULL(MAX(ID_ARTYKULU), 0) FROM dbo.ARTYKUL WITH (UPDLOCK, HOLDLOCK);
+
+        INSERT INTO #New (ID_ARTYKULU, INDEKS_KATALOGOWY, Glowny)
+        SELECT @MaxId + ROW_NUMBER() OVER (ORDER BY p.RowNo, w.Glowny), p.INDEKS_KATALOGOWY, w.Glowny
+        FROM #P p
+        CROSS APPLY (VALUES (p.ID, 0), (p.ID_GLOWNY, 1)) w (ID_ARTYKULU, Glowny)
+        WHERE w.ID_ARTYKULU IS NULL;
+
+        UPDATE #P SET Result = 1 WHERE ID IS NULL;
+
+        INSERT INTO [dbo].[ARTYKUL]
+        (
+            ID_ARTYKULU, ID_ARTYKULU_Prod,
+            ID_MAGAZYNU, ID_KATEGORII,
+            ID_CENY_DOM, VAT_ZAKUPU, VAT_SPRZEDAZY,
+            NAZWA, NAZWA_ORYG, NAZWA2,
+            STAN, ILOSC_EDYTOWANA, OD_DOSTAWCOW, DO_ODBIORCOW,
+            INDEKS_KATALOGOWY, INDEKS_HANDLOWY, RODZAJ, KOD_KRESKOWY,
+            CENA_ZAKUPU_BRUTTO, CENA_ZAKUPU_NETTO, OSTRZEZENIE, POKAZUJ_OSTRZEZENIE,
+            WAGA, JED_WAGI, PODLEGA_RABATOWANIU, NAZWA_INTRASTAT,
+            PRODUCENT, ID_KATEGORII_TREE, UWAGI, DATA_ZM_CZ,
+            LOKALIZACJA, SEMAFOR, INDEKS_PRODUCENTA, ID_JEDNOSTKI, ID_JEDNOSTKI_INTRASTAT,
+            ID_JEDNOSTKI_REF, ID_JEDNOSTKI_SPRZ, ID_JEDNOSTKI_ZAK, POLE1
+        )
+        SELECT
+            n.ID_ARTYKULU,
+            -- Product in every warehouse points to the first one created
+            ISNULL(
+                (SELECT MIN(a.ID_ARTYKULU) FROM dbo.ARTYKUL a WHERE a.INDEKS_KATALOGOWY = n.INDEKS_KATALOGOWY),
+                MIN(n.ID_ARTYKULU) OVER (PARTITION BY n.INDEKS_KATALOGOWY)),
+            CASE WHEN n.Glowny = 1 THEN @ID_MAGAZYNUGLOWNEGO ELSE @ID_MAGAZYNU END, @ID_KATEGORII,
+            CASE WHEN n.Glowny = 1 THEN @ID_CENY_DOM_GLOWNY ELSE @ID_CENY_DOM END, p.VAT, p.VAT,
+            LEFT(p.NAZWA, 40), CAST(p.NAZWA AS VARCHAR(200)), LEFT(SUBSTRING(p.NAZWA, 41, LEN(p.NAZWA)), 190),
+            CASE WHEN n.Glowny = 1 THEN 0 ELSE p.STAN END, @ILOSC_EDYTOWANA, @OD_DOSTAWCOW, @DO_ODBIORCOW,
+            p.INDEKS_KATALOGOWY, ISNULL(p.INDEKS_HANDLOWY, ''), @RODZAJ, p.EAN,
+            p.CENA_ZAKUPU_BRUTTO, p.CENA_ZAKUPU_NETTO, @OSTRZEZENIE, @POKAZUJ_OSTRZEZENIE,
+            ISNULL(p.WAGA, 0), @JED_WAGI, @PODLEGA_RABATOWANIU, CAST(p.NAZWA AS VARCHAR(250)),
+            p.PRODUCENT, @ID_KATEGORII_TREE, p.UWAGI, @DATE,
+            @LOKALIZACJA, @SEMAFOR, p.INDEKS_KATALOGOWY, p.ID_JEDNOSTKI, p.ID_JEDNOSTKI,
+            p.ID_JEDNOSTKI, p.ID_JEDNOSTKI, p.ID_JEDNOSTKI, p.POLE1
+        FROM #New n
+        JOIN #P p ON p.INDEKS_KATALOGOWY = n.INDEKS_KATALOGOWY;
+
+        UPDATE p
+        SET ID = ISNULL(p.ID, n.ID_ARTYKULU)
+        FROM #P p JOIN #New n ON n.INDEKS_KATALOGOWY = p.INDEKS_KATALOGOWY AND n.Glowny = 0;
+
+        UPDATE p
+        SET ID_GLOWNY = ISNULL(p.ID_GLOWNY, n.ID_ARTYKULU)
+        FROM #P p JOIN #New n ON n.INDEKS_KATALOGOWY = p.INDEKS_KATALOGOWY AND n.Glowny = 1;
+    END
+
+    -- 3. Description. Products without description keep the one filled in manually.
+    UPDATE a
+    SET OPIS = p.OPIS,
+        DATA_ZM_CZ = @DATE
+    OUTPUT inserted.ID_ARTYKULU INTO #Changed (ID_ARTYKULU)
+    FROM #P p
+    CROSS APPLY (VALUES (p.ID), (p.ID_GLOWNY)) w (ID_ARTYKULU)
+    JOIN dbo.ARTYKUL a ON a.ID_ARTYKULU = w.ID_ARTYKULU
+    WHERE p.OPIS IS NOT NULL
+      AND NOT EXISTS (SELECT a.OPIS COLLATE Polish_BIN2 INTERSECT SELECT p.OPIS COLLATE Polish_BIN2);
+
+    -- 4. Prices: B in warehouse, A in main warehouse, C in both when given
+    INSERT INTO #Prices (ID_ARTYKULU, ID_CENY, CENA_NETTO, CENA_BRUTTO)
+    SELECT w.ID_ARTYKULU, w.ID_CENY, w.CENA_NETTO, w.CENA_BRUTTO
+    FROM #P p
+    CROSS APPLY (VALUES
+        (p.ID, 2, p.CENA_SPRZEDAZY_NETTO, p.CENA_SPRZEDAZY_BRUTTO),
+        (p.ID_GLOWNY, 1, p.CENA_SPRZEDAZY_NETTO, p.CENA_SPRZEDAZY_BRUTTO),
+        (p.ID, 3, p.CENA_SPRZEDAZY_NETTO_C, p.CENA_SPRZEDAZY_BRUTTO_C),
+        (p.ID_GLOWNY, 3, p.CENA_SPRZEDAZY_NETTO_C, p.CENA_SPRZEDAZY_BRUTTO_C)
+    ) w (ID_ARTYKULU, ID_CENY, CENA_NETTO, CENA_BRUTTO)
+    WHERE w.ID_CENY <> 3 OR (p.CENA_SPRZEDAZY_NETTO_C IS NOT NULL AND p.CENA_SPRZEDAZY_BRUTTO_C IS NOT NULL);
+
+    UPDATE c
+    SET
+        SYM_WAL = '',
+        PRZELICZNIK_WAL = 1,
+        OBL_WG_CEN_ZAK = 0,
+        CENA_NETTO = n.CENA_NETTO,
+        CENA_BRUTTO = n.CENA_BRUTTO,
+        UWAGI = '',
+        AKT_CEN_PRZY_DOSTAWIE = 1
+    OUTPUT inserted.ID_ARTYKULU INTO #PriceChanged (ID_ARTYKULU)
+    FROM [dbo].[CENA_ARTYKULU] c
+    JOIN #Prices n ON n.ID_ARTYKULU = c.ID_ARTYKULU AND n.ID_CENY = c.ID_CENY
+    WHERE EXISTS
+    (
+        SELECT c.SYM_WAL, c.PRZELICZNIK_WAL, c.OBL_WG_CEN_ZAK, c.CENA_NETTO, c.CENA_BRUTTO, c.UWAGI, c.AKT_CEN_PRZY_DOSTAWIE
+        EXCEPT
+        SELECT '', 1, 0, n.CENA_NETTO, n.CENA_BRUTTO, '', 1
+    );
+
+    INSERT INTO [dbo].[CENA_ARTYKULU] (ID_ARTYKULU, ID_CENY, SYM_WAL, PRZELICZNIK_WAL, OBL_WG_CEN_ZAK, CENA_NETTO, CENA_BRUTTO, UWAGI, AKT_CEN_PRZY_DOSTAWIE)
+    OUTPUT inserted.ID_ARTYKULU INTO #PriceChanged (ID_ARTYKULU)
+    SELECT n.ID_ARTYKULU, n.ID_CENY, '', 1, 0, n.CENA_NETTO, n.CENA_BRUTTO, '', 1
+    FROM #Prices n
+    WHERE NOT EXISTS (SELECT 1 FROM [dbo].[CENA_ARTYKULU] c WHERE c.ID_ARTYKULU = n.ID_ARTYKULU AND c.ID_CENY = n.ID_CENY);
+
+    INSERT INTO #Changed (ID_ARTYKULU) SELECT ID_ARTYKULU FROM #PriceChanged;
+
+    -- Shop integrator trigger on CENA_ARTYKULU (_INTEGRATOR_CENA_ZMIANA_TRIG) registers only one new product per statement (TOP 1).
+    -- Products it skipped are registered here with the same values the trigger gives them, like when prices were saved one by one.
+    IF OBJECT_ID('dbo._integrator_artykul_zmiana', 'U') IS NOT NULL
+        EXEC sp_executesql N'
+            INSERT INTO dbo._integrator_artykul_zmiana (id_obiektu, do_przetworzenia, przetwarzane_przez, id_sklepu)
+            SELECT DISTINCT c.ID_ARTYKULU, 16, 0, ''''
+            FROM #PriceChanged c
+            WHERE NOT EXISTS (SELECT 1 FROM dbo._integrator_artykul_zmiana z WHERE z.id_obiektu = c.ID_ARTYKULU);';
+
+    -- 5. Barcodes missing in warehouse
+    INSERT INTO dbo.KOD_KRESKOWY ([ID_MAGAZYNU], [KOD_KRESKOWY], [ID_ARTYKULU], [ID_JEDNOSTKI], [DOM_ILOSC], [OPIS], [PRZENOS_OPIS], [OPIS_CD])
+    OUTPUT inserted.ID_ARTYKULU INTO #Changed (ID_ARTYKULU)
+    SELECT w.ID_MAGAZYNU, e.Ean, w.ID_ARTYKULU, 0, 1.0000, NULL, 0, NULL
+    FROM #Eans e
+    JOIN #P p ON p.INDEKS_KATALOGOWY = e.INDEKS_KATALOGOWY
+    CROSS APPLY (VALUES (@ID_MAGAZYNU, p.ID), (@ID_MAGAZYNUGLOWNEGO, p.ID_GLOWNY)) w (ID_MAGAZYNU, ID_ARTYKULU)
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.KOD_KRESKOWY kk WHERE kk.KOD_KRESKOWY = e.Ean AND kk.ID_MAGAZYNU = w.ID_MAGAZYNU);
+
+    COMMIT TRANSACTION;
+
+    UPDATE p
+    SET Result = 2
+    FROM #P p
+    WHERE p.Result = 0 AND EXISTS (SELECT 1 FROM #Changed c WHERE c.ID_ARTYKULU IN (p.ID, p.ID_GLOWNY));
+
+    -- Result for every row of the batch, also for repeated codes
+    SELECT pr.RowNo, p.Result
+    FROM @Products pr
+    JOIN #P p ON p.INDEKS_KATALOGOWY = pr.INDEKS_KATALOGOWY;
+END

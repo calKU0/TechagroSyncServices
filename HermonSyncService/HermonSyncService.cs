@@ -23,8 +23,10 @@ namespace HermonSyncService
 
         private readonly IProductSyncService _productSyncService;
         private readonly IEmailService _emailService;
+        private readonly NewProductsNotifier _newProductsNotifier;
 
         private DateTime _lastSnapshotSave = DateTime.MinValue;
+        private DateTime _lastImagesSync = DateTime.MinValue;
 
         public HermonSyncService()
         {
@@ -39,6 +41,7 @@ namespace HermonSyncService
             _productService = new ProductService();
             _productSyncService = new ProductSyncService(productRepository);
             _emailService = new EmailService(smtpSettings);
+            _newProductsNotifier = new NewProductsNotifier(_emailService, "Hermon");
 
             InitializeComponent();
         }
@@ -47,68 +50,45 @@ namespace HermonSyncService
         {
             var images = new List<FtpImage>();
 
+            // Import list (codes with or without "HR" suffix)
+            var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
+            var importCodes = FileUtils.ReadImportCodes(importFilePath, ServiceConstants.CodeSuffix);
+
             // 1. Getting default info about products
             var basicProductData = await _productService.SyncProductsFromFtp();
 
-            // 2.Getting product images
-            if (_lastSnapshotSave < DateTime.Today)
+            // 2. Getting product images once a day, only for products from import list
+            // FTP errors only postpone images, prices and stock are synced anyway
+            if (_lastImagesSync < DateTime.Today && importCodes.Any())
             {
-                images = _productService.SyncImagesFromFtp();
+                try
+                {
+                    images = _productService.SyncImagesFromFtp(importCodes.Select(c => c.SupplierCode));
+                    _lastImagesSync = DateTime.Today;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to download images from FTP. They will be downloaded in next run.");
+                }
             }
 
             // 3. Getting detailed info about products from API
-            var detailedProductData = await _productService.FetchProductDetailsFromApi(basicProductData);
+            var detailsResult = await _productService.FetchProductDetailsFromApi(basicProductData);
+
+            // FTP errors return an empty product list
+            bool isFetchComplete = basicProductData.Any() && detailsResult.IsComplete;
 
             // 4. Building full product data
-            var products = await _productService.BuildProductDtos(basicProductData, detailedProductData, images);
+            var products = await _productService.BuildProductDtos(basicProductData, detailsResult.Items, images);
 
-            if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
-            {
-                // Step 5.1: Detect newly added products
-                var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ExportFolder);
-                var newProductsFolder = Path.Combine(exportPath, ServiceConstants.NewProductsFolder);
-                var newProductsFileName = string.Format(ServiceConstants.NewProductsFileNameFormat, DateTime.Today.ToString("dd-MM-yyyy"));
-                var snapshotPath = Path.Combine(exportPath, ServiceConstants.SnapshotFileName);
-                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, products, p => p.Code);
-
-                if (newProducts.Any())
-                {
-                    // Step 5.2: Send notification email about new products
-                    var to = CommonSettingsLoader.GetEmailsToNotify();
-                    await BatchEmailNotifier.SendAsync(
-                        newProducts,
-                        100,
-                        batch => $"Nowe produkty Hermon ({newProducts.Count})",
-                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Hermon"),
-                        recipients: to,
-                        from: "Hermon Sync Service",
-                        emailService: _emailService);
-
-                    Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
-
-                    // Step 5.3: Save CSV snapshot of new products
-                    var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
-                    Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
-
-                    // Step 5.4: Clean old snapshots
-                    var daysToKeep = CommonSettingsLoader.GetFilesExpirationDays();
-                    SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
-                }
-                else
-                {
-                    Log.Information("No new products detected.");
-                }
-
-                // Step 6: Export to JSON
-                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, products);
-                Log.Information("JSON file created at {Path}", snapshotPath);
+            // 5. Report new products once a day (errors never stop the sync)
+            if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6 && await _newProductsNotifier.DetectAndNotifyAsync(products, isFetchComplete))
                 _lastSnapshotSave = DateTime.Today;
-            }
 
-            // Step 7: Filter by import list
-            var importFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ImportCodesFilePath);
-
-            var allowedCodes = FileUtils.ReadImportList(importFilePath);
+            // 6. Filter by import list
+            var allowedCodes = importCodes
+                .Select(c => c.DatabaseCode)
+                .ToList();
 
             if (!allowedCodes.Any())
             {
@@ -116,6 +96,7 @@ namespace HermonSyncService
                 return;
             }
 
+            var fetchedCodes = products.Select(p => p.Code).ToList();
             products = ImportFilterHelper.FilterByAllowedCodes(products, allowedCodes, p => p.Code, out var missingCodes).ToList();
 
             if (missingCodes.Any())
@@ -125,10 +106,10 @@ namespace HermonSyncService
                     Log.Warning("Missing: {Code}", code);
             }
 
-            // Step 8.1: Delete products not in the current import list
-            await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
+            // 7.1. Delete products not in the current import list or no longer returned by API
+            await _productSyncService.DeleteNotSyncedProducts(ServiceConstants.Company, allowedCodes, fetchedCodes, isFetchComplete);
 
-            // Step 8.2: Sync current products
+            // 7.2. Sync current products
             await _productSyncService.SyncToDatabaseAsync(products);
         }
     }

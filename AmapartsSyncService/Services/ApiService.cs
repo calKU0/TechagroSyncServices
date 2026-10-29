@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using TechagroSyncServices.Shared.DTOs;
 
 namespace AmapartsSyncService.Services
 {
@@ -28,7 +29,8 @@ namespace AmapartsSyncService.Services
             _client.Timeout = TimeSpan.FromMinutes(10);
         }
 
-        public async Task<List<ApiProductsResponse>> FetchProductsDetails()
+        // Whole offer is a single CSV file, so any error means incomplete result
+        public async Task<FetchResult<ApiProductsResponse>> FetchProductsDetails()
         {
             try
             {
@@ -50,12 +52,12 @@ namespace AmapartsSyncService.Services
                     productsDetails = csv.GetRecords<ApiProductsResponse>().ToList();
                 }
 
-                return productsDetails;
+                return FetchResult<ApiProductsResponse>.Complete(productsDetails);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error during product sync.");
-                return new List<ApiProductsResponse>();
+                return FetchResult<ApiProductsResponse>.Incomplete(new List<ApiProductsResponse>());
             }
         }
 

@@ -137,16 +137,18 @@ namespace HermonSyncService.Services
 
         // --------------------------------------
         // Download image files from FTP folder
+        // isNeeded - only matching files are downloaded (whole folder has tens of thousands of images)
         // --------------------------------------
-        public List<FtpImage> DownloadImages(string folderPath)
+        public List<FtpImage> DownloadImages(string folderPath, Func<string, bool> isNeeded)
         {
             EnsureConnected();
 
             var fileNames = ListFiles(folderPath);
             var imageFiles = fileNames.Where(f =>
-                f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                (f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                 f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) &&
+                isNeeded(f)
             ).ToList();
 
             Log.Information("Found {Count} image files in {Folder}", imageFiles.Count, folderPath);

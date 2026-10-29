@@ -1,10 +1,14 @@
 using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace KrampSyncService.Constants
 {
     public static class ServiceConstants
     {
         public const IntegrationCompany Company = IntegrationCompany.KRAMP;
+
+        // Catalogue codes in database: "<sku>KR"
+        public static readonly ProductCodeSuffix CodeSuffix = new ProductCodeSuffix("KR");
 
         // API limits
         public const int MaxPricesBatchSize = 25;

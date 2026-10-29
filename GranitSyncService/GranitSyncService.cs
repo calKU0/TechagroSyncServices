@@ -53,11 +53,11 @@ namespace GranitSyncService
             }
 
             // 2. Getting info about products
-            var productDtos = await _syncService.FetchProductStockAndPrices(allowedCodes);
-            var products = productDtos.Select(p => BuildHelper.BuildProductDto(p, defaultMargin, marginRanges)).ToList();
+            var fetchResult = await _syncService.FetchProductStockAndPrices(allowedCodes);
+            var products = fetchResult.Items.Select(p => BuildHelper.BuildProductDto(p, defaultMargin, marginRanges)).ToList();
 
-            // 3. Delete products not in the current import list
-            await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
+            // 3. Delete products not in the current import list or no longer returned by API
+            await _productSyncService.DeleteNotSyncedProducts(ServiceConstants.Company, allowedCodes, products.Select(p => p.Code), fetchResult.IsComplete);
 
             // 4. Sync current products
             await _productSyncService.SyncToDatabaseAsync(products);

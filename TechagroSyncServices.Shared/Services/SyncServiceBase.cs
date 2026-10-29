@@ -21,6 +21,14 @@ namespace TechagroSyncServices.Shared.Services
             // Serilog configuration and initialization
             LogConfig.Configure(CommonSettingsLoader.GetLogsExpirationDays());
 
+            // Errors while creating the service (e.g. missing setting in App.config) would otherwise be lost
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                Log.Fatal(e.ExceptionObject as Exception, "Service crashed. Check App.config of the service.");
+                Log.CloseAndFlush();
+            };
+            Log.Information("Starting service {Name}...", GetType().Name);
+
             _interval = CommonSettingsLoader.GetFetchInterval();
         }
 

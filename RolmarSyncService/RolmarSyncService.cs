@@ -24,6 +24,7 @@ namespace RolmarSyncService
 
         private readonly IProductSyncService _productSyncService;
         private readonly IEmailService _emailService;
+        private readonly NewProductsNotifier _newProductsNotifier;
         private readonly ISyncStateService _syncStateService;
 
         private readonly HttpClient _httpClient;
@@ -45,6 +46,7 @@ namespace RolmarSyncService
             _apiService = new ApiService(_httpClient);
             _productSyncService = new ProductSyncService(productRepository);
             _emailService = new EmailService(smtpSettings);
+            _newProductsNotifier = new NewProductsNotifier(_emailService, "Rolmar");
             _syncStateService = new FileSyncStateService();
 
             InitializeComponent();
@@ -96,50 +98,9 @@ namespace RolmarSyncService
             Log.Information($"Building product data...");
             var fullProducts = BuildHelper.BuildProductDtos(products, stock, images, defaultMargin, marginRanges);
 
-            if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6)
-            {
-                // Step 5.1: Detect newly added products
-                Log.Information($"Detecting new products...");
-                var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ServiceConstants.ExportFolder);
-                var newProductsFolder = Path.Combine(exportPath, ServiceConstants.NewProductsFolder);
-                var newProductsFileName = string.Format(ServiceConstants.NewProductsFileNameFormat, DateTime.Today.ToString("dd-MM-yyyy"));
-                var snapshotPath = Path.Combine(exportPath, ServiceConstants.SnapshotFileName);
-                var newProducts = await SnapshotChangeDetector.DetectNewAsync(snapshotPath, fullProducts, p => p.Code);
-
-                if (newProducts.Any())
-                {
-                    // Step 5.2: Send notification email about new products
-                    var to = CommonSettingsLoader.GetEmailsToNotify();
-                    await BatchEmailNotifier.SendAsync(
-                        newProducts,
-                        100,
-                        batch => $"Nowe produkty Rolmar ({newProducts.Count})",
-                        batch => HtmlHelper.BuildNewProductsEmailHtml(batch, "Rolmar"),
-                        recipients: to,
-                        from: "Rolmar Sync Service",
-                        emailService: _emailService);
-
-                    Log.Information("Detected {Count} new products. Notification email sent to: {Recipients}", newProducts.Count, string.Join(", ", to));
-
-                    // Step 5.3: Save CSV snapshot of new products
-                    var exportedFileName = await SnapshotChangeDetector.SaveProductsSnapshotCsvAsync(newProductsFolder, newProductsFileName, newProducts);
-                    Log.Information("CSV snapshot of new products saved at {Path}", exportedFileName);
-
-                    // Step 5.4: Clean old snapshots
-                    var daysToKeep = CommonSettingsLoader.GetFilesExpirationDays();
-                    SnapshotChangeDetector.CleanOldSnapshots(newProductsFolder, daysToKeep);
-                }
-                else
-                {
-                    Log.Information("No new products detected.");
-                }
-
-                // Step 6: Export to JSON
-                Log.Information($"Exporting product data to json file...");
-                await SnapshotChangeDetector.SaveSnapshotAsync(snapshotPath, fullProducts);
-                Log.Information("JSON file created at {Path}", snapshotPath);
+            // Step 5: Report new products once a day (errors never stop the sync)
+            if (_lastSnapshotSave < DateTime.Today && DateTime.Now.Hour >= 6 && await _newProductsNotifier.DetectAndNotifyAsync(fullProducts, true))
                 _lastSnapshotSave = DateTime.Today;
-            }
 
             // Step 7: Filter by import list
             Log.Information($"Filtering products by import list...");
@@ -151,6 +112,7 @@ namespace RolmarSyncService
                 return;
             }
 
+            var fetchedCodes = fullProducts.Select(p => p.Code).ToList();
             fullProducts = ImportFilterHelper.FilterByAllowedCodes(fullProducts, allowedCodes, p => p.Code, out var missingCodes).ToList();
 
             if (missingCodes.Any())
@@ -160,8 +122,9 @@ namespace RolmarSyncService
                     Log.Warning("Missing: {Code}", code);
             }
 
-            // Step 8.1: Delete products not in the current import list
-            await _productSyncService.DeleteNotSyncedProducts(allowedCodes, ServiceConstants.Company);
+            // Step 8.1: Delete products not in the current import list or no longer returned by API.
+            // Products and stock are single requests and their errors abort the sync above, so here the data is complete
+            await _productSyncService.DeleteNotSyncedProducts(ServiceConstants.Company, allowedCodes, fetchedCodes, true);
 
             // Step 8.2: Sync current products
             await _productSyncService.SyncToDatabaseAsync(fullProducts);

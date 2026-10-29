@@ -1,4 +1,5 @@
 ﻿using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace AgrobisSyncService.Constants
 {
@@ -6,11 +7,10 @@ namespace AgrobisSyncService.Constants
     {
         public const IntegrationCompany Company = IntegrationCompany.AGROBIS;
 
+        // Catalogue codes in database: "AB<index>"
+        public static readonly ProductCodePrefix CodePrefix = new ProductCodePrefix("AB");
+
         // Paths
-        public const string ExportFolder = "Export";
-        public const string NewProductsFolder = "Nowe";
         public const string ImportCodesFilePath = "Import/numery_katalogowe.txt";
-        public const string SnapshotFileName = "products.json";
-        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv";
     }
 }

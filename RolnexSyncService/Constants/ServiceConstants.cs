@@ -1,4 +1,5 @@
 using TechagroApiSync.Shared.Enums;
+using TechagroSyncServices.Shared.Helpers;
 
 namespace RolnexSyncService.Constants
 {
@@ -6,11 +7,10 @@ namespace RolnexSyncService.Constants
     {
         public const IntegrationCompany Company = IntegrationCompany.ROLNEX;
 
+        // Catalogue codes in database: "RL<id>"
+        public static readonly ProductCodePrefix CodePrefix = new ProductCodePrefix("RL");
+
         // Paths
-        public const string ExportFolder = "Export";
-        public const string NewProductsFolder = "Nowe";
         public const string ImportCodesFilePath = "Import/numery_katalogowe.txt";
-        public const string SnapshotFileName = "products.json";
-        public const string NewProductsFileNameFormat = "nowe-produkty-{0}.csv"; // {0} = date
     }
 }

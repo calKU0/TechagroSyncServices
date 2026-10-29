@@ -19,7 +19,7 @@ namespace KrampSyncService.Helpers
             return new ProductDto
             {
                 Id = 0,
-                Code = p.Sku,
+                Code = ServiceConstants.CodeSuffix.ToDatabaseCode(p.Sku),
                 TradingCode = p.Sku,
                 Name = p.Sku,
                 Quantity = p.Stock ?? 0,
