@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GranitSyncService", "Granit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrampSyncService", "KrampSyncService\KrampSyncService.csproj", "{2AB978F6-A3E8-48CB-9171-7C55C7389FFB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HiFiSyncService", "HiFiSyncService\HiFiSyncService.csproj", "{9DA34C8F-E572-473B-B88F-FF1E518A0167}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TechagroSyncServices.Tests", "TechagroSyncServices.Tests\TechagroSyncServices.Tests.csproj", "{4F2C8E1A-7B3D-4C6E-9A15-2D8B6F0E3C71}"
 EndProject
 Global
@@ -143,6 +145,14 @@ Global
 		{2AB978F6-A3E8-48CB-9171-7C55C7389FFB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2AB978F6-A3E8-48CB-9171-7C55C7389FFB}.Release|x86.ActiveCfg = Release|Any CPU
 		{2AB978F6-A3E8-48CB-9171-7C55C7389FFB}.Release|x86.Build.0 = Release|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Debug|x86.Build.0 = Debug|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Release|x86.ActiveCfg = Release|Any CPU
+		{9DA34C8F-E572-473B-B88F-FF1E518A0167}.Release|x86.Build.0 = Release|Any CPU
 		{4F2C8E1A-7B3D-4C6E-9A15-2D8B6F0E3C71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4F2C8E1A-7B3D-4C6E-9A15-2D8B6F0E3C71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F2C8E1A-7B3D-4C6E-9A15-2D8B6F0E3C71}.Debug|x86.ActiveCfg = Debug|Any CPU

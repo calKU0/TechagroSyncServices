@@ -76,6 +76,13 @@ namespace TechagroSyncServices.Manager.Helpers
             new ConfigField { Key = "KrampApiAtpRequestedQuantity", Label = "Ilość w zapytaniu o stany", Group = "Kramp API" , IsEnabled = false},
             new ConfigField { Key = "KrampApiPricesRefreshHours", Label = "Odświeżanie cen (godz.)", Group = "Kramp API" , IsEnabled = false},
 
+            // HiFi API
+            new ConfigField { Key = "HiFiApiBaseUrl", Label = "Adres API HIFI FILTER", Group = "HiFi API" , IsEnabled = false},
+            new ConfigField { Key = "HiFiApiKey", Label = "Id klucza API", Group = "HiFi API" , IsEnabled = false},
+            new ConfigField { Key = "HiFiApiSecret", Label = "Sekret klucza API", Group = "HiFi API" , IsEnabled = false},
+            new ConfigField { Key = "HiFiApiLegalEntity", Label = "Oddział (legal entity)", Group = "HiFi API" , IsEnabled = false},
+            new ConfigField { Key = "HiFiApiRequestsPerMinute", Label = "Limit zapytań na minutę", Group = "HiFi API" , IsEnabled = false},
+
             // Other settings
             new ConfigField { Key = "EmailsToNotify", Label = "Adresy email do powiadomień", Group = "Inne ustawienia" },
             new ConfigField { Key = "LogsExpirationDays", Label = "Ilość dni zachowania logów", Group = "Inne ustawienia" },

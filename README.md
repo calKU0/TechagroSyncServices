@@ -42,6 +42,7 @@ This makes monitoring and managing all services simple and intuitive.
 | **AgrobisSyncService** | Agrobis API (paged) | JSON | `AB<index>` | import list |
 | **GranitSyncService** | Granit API, live prices and stock | JSON | supplier code | import list |
 | **KrampSyncService** | Kramp API, live prices and availability (daily request limit) | JSON | `<sku>KR` | import list |
+| **HiFiSyncService** | HIFI FILTER API, live prices and stock (HFPL) | JSON | `<reference>HF` | import list |
 
 Additional projects:
 
@@ -55,18 +56,18 @@ Every service runs on a timer (`FetchIntervalMinutes`) and in each run:
 
 1. **Reads the import list** – `Import/numery_katalogowe.txt` with catalogue codes to synchronize (one per line).
    Codes can be written with or without the supplier affix (e.g. `12345` and `12345AR` mean the same product).
-2. **Fetches products** – live services (Agrorami, Granit, Kramp, Hermon) ask the API only for products from the import list,
+2. **Fetches products** – live services (Agrorami, Granit, Kramp, HiFi, Hermon) ask the API only for products from the import list,
    catalog services download the whole offer and filter it.
 3. **Reports new products** once a day – e-mail with new products and a CSV file in `Export/Nowe`.
    E-mail errors never stop the synchronization, the report is repeated in the next run.
 4. **Deletes products** that are no longer in the import list or are no longer returned by the supplier (see below).
 5. **Inserts or updates products** – prices, stock, descriptions, images and barcodes.
    Data the supplier does not send (name equal to the code, weight, description, categories, brand, barcodes, images)
-   never overwrites values filled in manually in the database, e.g. Kramp and Granit send only prices and stock.
+   never overwrites values filled in manually in the database, e.g. Kramp, Granit and HiFi send only prices and stock.
 
 ### Supplier code affixes
 
-Codes of some suppliers get a suffix (`AR`, `HR`, `KR`) or a prefix (`AB`, `RL`), so codes of different suppliers never collide.
+Codes of some suppliers get a suffix (`AR`, `HR`, `KR`, `HF`) or a prefix (`AB`, `RL`), so codes of different suppliers never collide.
 The affix is removed before calling the API and added before saving to the database (`Indeks_katalogowy` is cut to 20 characters).
 A code that naturally starts or ends with the affix has to be written in the import list together with the affix.
 
