@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace ServiceManager
+namespace TechagroSyncServices.Manager
 {
     /// <summary>
     /// Interaction logic for App.xaml

@@ -1,7 +1,7 @@
-﻿using ServiceManager.Models;
+﻿using TechagroSyncServices.Manager.Models;
 using System.Data.Common;
 
-namespace ServiceManager.Helpers
+namespace TechagroSyncServices.Manager.Helpers
 {
     public static class ConfigHelper
     {
@@ -82,6 +82,8 @@ namespace ServiceManager.Helpers
             new ConfigField { Key = "FilesExpirationDays", Label = "Ilość dni zachowania plików", Group = "Inne ustawienia" },
             new ConfigField { Key = "FetchIntervalMinutes", Label = "Odświeżanie stanu/ceny (min)", Group = "Inne ustawienia" },
             new ConfigField { Key = "SupplierDiscount", Label = "Rabat producenta (%)", Group = "Inne ustawienia" },
+            new ConfigField { Key = "MaxMissingProductsPercent", Label = "Maks. % produktów usuwanych naraz", Group = "Inne ustawienia" },
+            new ConfigField { Key = "MissingRunsBeforeDelete", Label = "Ile razy z rzędu brak w API przed usunięciem", Group = "Inne ustawienia" },
             new ConfigField { Key = "DefaultMargin", Label = "Podstawowa marża (%)", Group = "Marże" },
         };
 

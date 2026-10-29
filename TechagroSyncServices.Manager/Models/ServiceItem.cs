@@ -1,4 +1,4 @@
-﻿namespace ServiceManager.Models
+﻿namespace TechagroSyncServices.Manager.Models
 {
     public class ServiceItem
     {

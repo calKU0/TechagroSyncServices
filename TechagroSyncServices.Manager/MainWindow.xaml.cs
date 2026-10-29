@@ -1,6 +1,6 @@
-﻿using ServiceManager.Enums;
-using ServiceManager.Helpers;
-using ServiceManager.Models;
+﻿using TechagroSyncServices.Manager.Enums;
+using TechagroSyncServices.Manager.Helpers;
+using TechagroSyncServices.Manager.Models;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Configuration;
@@ -13,7 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace ServiceManager
+namespace TechagroSyncServices.Manager
 {
     public partial class MainWindow : Window
     {

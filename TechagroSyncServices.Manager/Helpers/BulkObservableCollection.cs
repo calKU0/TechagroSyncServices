@@ -1,7 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 
-namespace ServiceManager.Helpers
+namespace TechagroSyncServices.Manager.Helpers
 {
     public class BulkObservableCollection<T> : ObservableCollection<T>
     {

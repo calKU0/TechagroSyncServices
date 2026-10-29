@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace ServiceManager.Models
+namespace TechagroSyncServices.Manager.Models
 {
     public class LogFileItem : INotifyPropertyChanged
     {

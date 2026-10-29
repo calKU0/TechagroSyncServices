@@ -13,7 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmapartsSyncService", "Amap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntercarsSyncService", "IntercarsSyncService\IntercarsSyncService.csproj", "{A35F6519-CB6A-4D80-9D03-F176000AD40B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceManager", "ServiceManager\ServiceManager.csproj", "{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TechagroSyncServices.Manager", "TechagroSyncServices.Manager\TechagroSyncServices.Manager.csproj", "{CEF65E2C-C084-4505-BDAA-21BB6BE7C534}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RolmarSyncService", "RolmarSyncService\RolmarSyncService.csproj", "{1DBBC2D3-7B27-4874-991F-CE97F335D1D8}"
 EndProject

@@ -1,6 +1,6 @@
-﻿using ServiceManager.Enums;
+﻿using TechagroSyncServices.Manager.Enums;
 
-namespace ServiceManager.Models
+namespace TechagroSyncServices.Manager.Models
 {
     public class LogLine
     {
