@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TechagroSyncServices.Shared\TechagroSyncServices.Shared.csproj" />
+    <ProjectReference Include="..\HiFiSyncService\HiFiSyncService.csproj" />
     <ProjectReference Include="..\KrampSyncService\KrampSyncService.csproj" />
   </ItemGroup>
 
